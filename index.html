@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='76d2d0c';</script>
+<script>window.MARGINE_VER='ea70b26';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -54,7 +54,7 @@ svg{display:block}
 .brand{display:flex;align-items:center;gap:12px}
 .brand h1{margin:0;font-family:var(--serif);font-weight:600;font-size:34px;letter-spacing:-.01em;text-wrap:balance}
 .mark{width:40px;height:40px;border-radius:10px;background:var(--card);box-shadow:var(--shadow);display:grid;place-items:center}
-.lib-sub{margin:0;color:var(--fg2);font-size:16px;line-height:1.5;max-width:58ch}
+.lib-sub{margin:0;color:var(--fg2);font-size:16px;line-height:1.5;max-width:58ch;text-align:justify;-webkit-hyphens:auto;hyphens:auto}
 .primary{background:var(--accent);color:#fff;font-weight:600;font-size:16px;padding:11px 20px;border-radius:999px;display:inline-flex;align-items:center;gap:8px}
 .primary:active{filter:brightness(.92)}
 .sec-h{margin:0 0 10px;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg2);display:flex;align-items:center;gap:7px}
@@ -306,7 +306,7 @@ svg{display:block}
       </div>
       <button class="primary" id="bOpen"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Apri PDF</button>
     </header>
-    <p class="lib-sub">Annota i PDF con Apple Pencil anche quando sono pesanti. Le pagine vengono disegnate solo quando le guardi, le tue annotazioni restano vettoriali e si salvano da sole.</p>
+    <p class="lib-sub" lang="it">Annota i PDF con Apple Pencil anche quando sono pesanti. Le pagine vengono disegnate solo quando le guardi, le tue annotazioni restano vettoriali e si salvano da sole.</p>
     <div class="appwarn" id="appwarn" hidden><b>Stai usando Margine nell’app Claude</b>Quando chiudi l’app, i PDF e le annotazioni salvati qui vengono cancellati. Per non perdere nulla apri Margine da Safari, oppure prima di chiudere tocca sempre Salva in File e la volta dopo riapri quel file.</div>
     <section>
       <h2 class="sec-h"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>Recenti</h2>
@@ -316,7 +316,7 @@ svg{display:block}
     <div class="diag" id="diag" hidden></div>
     <button class="linkbtn" id="bDiag">Stato archivio</button>
     <p class="note" id="ver" style="opacity:.7"></p>
-    <p class="note">I PDF e le annotazioni restano in questo browser, su questo iPad. Usa Salva in File per avere una copia con le annotazioni dentro: restano modificabili anche in Anteprima.</p>
+    <p class="note" lang="it" style="text-align:justify;-webkit-hyphens:auto;hyphens:auto">I PDF e le annotazioni restano in questo browser, su questo iPad. Usa Salva in File per avere una copia con le annotazioni dentro: restano modificabili anche in Anteprima.</p>
   </div>
 </main>
 
