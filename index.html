@@ -202,8 +202,12 @@ svg{display:block}
 @keyframes sp{to{transform:rotate(360deg)}}
 .bar{width:100%;height:5px;border-radius:3px;background:var(--chip);overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
-.reader.focus .top{display:none}
-.reader.focus .searchbar{top:10px}
+.reader.focus .top{position:fixed;top:0;left:0;right:0;z-index:22;background:none;border:0;-webkit-backdrop-filter:none;backdrop-filter:none;pointer-events:none;padding-block:calc(10px + env(safe-area-inset-top,0px)) 0}
+.reader.focus .top .tl,.reader.focus .top .tr{visibility:hidden}
+.reader.focus .top .tc{pointer-events:auto;background:var(--chrome);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:var(--shadow)}
+.reader.focus .searchbar{top:calc(64px + env(safe-area-inset-top,0px))}
+.page svg.img{pointer-events:none}
+.sel-handle{fill:#fff;stroke:#0a84ff;stroke-width:2;vector-effect:non-scaling-stroke}
 .fbar{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));z-index:22;display:flex;align-items:center;gap:2px;background:var(--chrome);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-radius:999px;padding:3px 3px 3px 12px;box-shadow:var(--shadow)}
 .fbar span{font-size:12px;color:var(--fg2);font-variant-numeric:tabular-nums;margin-right:4px}
 .reader:not(.focus) .fbar{display:none}
@@ -284,6 +288,7 @@ svg{display:block}
     <div class="pill tc">
       <button class="ib on" id="bMarkup" aria-label="Strumenti di annotazione" title="Strumenti di annotazione"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M9.2 16.3 14.6 7.5l1.9 1.2-5.4 8.8-2.3.9z" stroke-linejoin="round"/></svg></button>
       <button class="ib" id="bAddText" aria-label="Aggiungi casella di testo" title="Aggiungi casella di testo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2.5"/><path d="M6.5 13h.01M9.5 13h.01M12.5 13h.01" stroke-width="2.6"/><path d="m14.6 12.2 6-6a1.35 1.35 0 0 0-1.9-1.9l-6 6-.6 2.5z"/></svg></button>
+ <button class="ib" id="bAddImg" aria-label="Aggiungi immagine" title="Aggiungi immagine"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="m3.5 17.5 5-5 4 4 3-3 5 5"/></svg></button>
       <button class="ib" id="bRotate" aria-label="Ruota la pagina" title="Ruota la pagina"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="9" width="11" height="11.5" rx="2"/><path d="M11.5 4.5H15a4 4 0 0 1 4 4V12"/><path d="m16.3 9.6 2.7 2.7 2.7-2.7"/></svg></button>
     </div>
     <div class="pill tr">
@@ -344,6 +349,7 @@ svg{display:block}
 <div class="busy" id="ready" hidden><div class="busy-card lv-card" role="dialog" aria-modal="true" aria-labelledby="readyT"><b class="lv-t" id="readyT">PDF pronto</b><p id="readyTxt"></p><div class="lv-b"><button class="primary" id="readyGo">Salva in File</button><button class="lv-x" id="readyNo">Annulla</button></div></div></div>
 <div class="busy" id="leave" hidden><div class="busy-card lv-card" role="dialog" aria-modal="true" aria-labelledby="lvT"><b class="lv-t" id="lvT">Modifiche non salvate in File</b><p id="leaveTxt"></p><div class="lv-b"><button class="primary" id="lvSave">Salva in File</button><button class="lv-x" id="lvExit">Esci senza salvare in File</button><button class="lv-x" id="lvCancel">Annulla</button></div></div></div>
 <input type="file" id="file" accept="application/pdf,.pdf" hidden>
+<input type="file" id="imgfile" accept="image/*" hidden>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
@@ -499,10 +505,10 @@ function measureText(text,size){measCtx.font=`${size}px Helvetica, Arial, sans-s
 function textCorners(p,it){const[a,b,c,d]=p.vt;return[[0,0],[it.w,0],[0,it.h],[it.w,it.h]].map(([lx,ly])=>[it.x+a*lx+b*ly,it.y+c*lx+d*ly]);}
 const bbCache=new WeakMap();
 function bboxOf(p,it){let b=bbCache.get(it);if(b)return b;
-  if(it.kind==='text'){const cs=textCorners(p,it);b=[Math.min(...cs.map(q=>q[0])),Math.min(...cs.map(q=>q[1])),Math.max(...cs.map(q=>q[0])),Math.max(...cs.map(q=>q[1]))];}
+  if(it.kind==='text'||it.kind==='image'){const cs=textCorners(p,it);b=[Math.min(...cs.map(q=>q[0])),Math.min(...cs.map(q=>q[1])),Math.max(...cs.map(q=>q[0])),Math.max(...cs.map(q=>q[1]))];}
   else{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;const pts=it.pts;for(let i=0;i<pts.length;i+=3){if(pts[i]<x0)x0=pts[i];if(pts[i]>x1)x1=pts[i];if(pts[i+1]<y0)y0=pts[i+1];if(pts[i+1]>y1)y1=pts[i+1];}const h=it.w*(TOOLS[it.tool]&&TOOLS[it.tool].press?.65:.5);b=[x0-h,y0-h,x1+h,y1+h];}
   bbCache.set(it,b);return b;}
-function hitItem(p,it,x,y,r){const b=bboxOf(p,it);if(x<b[0]-r||x>b[2]+r||y<b[1]-r||y>b[3]+r)return false;if(it.kind==='text')return true;
+function hitItem(p,it,x,y,r){const b=bboxOf(p,it);if(x<b[0]-r||x>b[2]+r||y<b[1]-r||y>b[3]+r)return false;if(it.kind==='text'||it.kind==='image')return true;
   const pts=it.pts,n=pts.length/3,rr=r+it.w/2;if(n===1)return Math.hypot(pts[0]-x,pts[1]-y)<=rr;
   for(let i=0;i<n-1;i++)if(segDist(x,y,pts[i*3],pts[i*3+1],pts[i*3+3],pts[i*3+4])<=rr)return true;return false;}
 
@@ -652,7 +658,7 @@ async function closeDoc(){finishText();closePop();el.menu.hidden=true;await save
 /* ---------- pagine, layout, rendering ---------- */
 /* rotazione aggiuntiva per pagina (gradi orari), salvata nei metadati del documento */
 function rotOf(i,pp){const extra=(S.meta&&S.meta.rot&&S.meta.rot[i])||0;return(((pp.rotate||0)+extra)%360+360)%360;}
-function pageGeom(p){const vb=`0 0 ${p.w1} ${p.h1}`,m=`matrix(${p.vt.join(' ')})`;for(const sv of p.el.querySelectorAll('svg.hl,svg.ink,svg.lv')){sv.setAttribute('viewBox',vb);sv.firstElementChild.setAttribute('transform',m);}}
+function pageGeom(p){const vb=`0 0 ${p.w1} ${p.h1}`,m=`matrix(${p.vt.join(' ')})`;for(const sv of p.el.querySelectorAll('svg.img,svg.hl,svg.ink,svg.lv')){sv.setAttribute('viewBox',vb);sv.firstElementChild.setAttribute('transform',m);}}
 async function rotatePage(i){finishText();clearSel();closePop();const p=S.pages[i];if(!p)return;
   S.meta.rot=S.meta.rot||{};S.meta.rot[i]=(((S.meta.rot[i]||0)+90)%360);if(!S.meta.rot[i])delete S.meta.rot[i];
   const pp=await S.doc.getPage(i+1),vp=pp.getViewport({scale:1,rotation:rotOf(i,pp)});
@@ -664,8 +670,8 @@ async function rotatePage(i){finishText();clearSel();closePop();const p=S.pages[
   if(i===0){S.meta.thumb=null;setTimeout(()=>makeDocThumb(S.gen),600);}
   S.indexP=null;if(S.matches.length)runSearch();markEdited();saveMeta(true);updateNear();pumpThumbs();}
 function makePage(p){const e=document.createElement('div');e.className='page';e.dataset.i=p.i;const vb=`0 0 ${p.w1} ${p.h1}`,m=`matrix(${p.vt.join(' ')})`;
-  e.innerHTML=`<span class="pno">${p.i+1}</span><svg class="hl" viewBox="${vb}" preserveAspectRatio="none"><g transform="${m}"><g class="gs"></g><g class="gh"></g></g></svg><svg class="ink" viewBox="${vb}" preserveAspectRatio="none"><g transform="${m}"><g class="gg"></g><g class="gi"></g><g class="gsel"></g></g></svg><svg class="lv" viewBox="${vb}" preserveAspectRatio="none"><g transform="${m}"></g></svg>`;
-  p.el=e;p.gS=e.querySelector('.gs');p.gH=e.querySelector('.gh');p.gI=e.querySelector('.gi');p.gSel=e.querySelector('.gsel');p.gG=e.querySelector('.gg');p.lv=e.querySelector('svg.lv');p.gL=p.lv.firstChild;p.nodes=new Map();}
+  e.innerHTML=`<span class="pno">${p.i+1}</span><svg class="img" viewBox="${vb}" preserveAspectRatio="none"><g transform="${m}"></g></svg><svg class="hl" viewBox="${vb}" preserveAspectRatio="none"><g transform="${m}"><g class="gs"></g><g class="gh"></g></g></svg><svg class="ink" viewBox="${vb}" preserveAspectRatio="none"><g transform="${m}"><g class="gg"></g><g class="gi"></g><g class="gsel"></g></g></svg><svg class="lv" viewBox="${vb}" preserveAspectRatio="none"><g transform="${m}"></g></svg>`;
+  p.el=e;p.gS=e.querySelector('.gs');p.gH=e.querySelector('.gh');p.gI=e.querySelector('.gi');p.gSel=e.querySelector('.gsel');p.gG=e.querySelector('.gg');p.gImg=e.querySelector('svg.img').firstChild;p.lv=e.querySelector('svg.lv');p.gL=p.lv.firstChild;p.nodes=new Map();}
 function layout(){if(!S.pages.length)return;const sc=el.scroller;const avail=Math.max(160,sc.clientWidth-PADX*2);
   S.scale=avail/S.maxW1*S.zoom;let y=PADT,mw=0;
   for(const p of S.pages){p.w=p.w1*S.scale;p.h=p.h1*S.scale;p.top=y;y+=p.h+14;p.el.style.width=p.w+'px';p.el.style.height=p.h+'px';if(p.w>mw)mw=p.w;}
@@ -742,6 +748,8 @@ async function pumpThumbs(){if(!S.doc||S.thumbBusy||S.rendering||!el.reader.clas
 
 /* ---------- annotazioni: rendering ---------- */
 function itemNode(p,it){
+  if(it.kind==='image'){const[a,b,c,d]=p.vt;const n=document.createElementNS(NS,'image');n.dataset.t=`matrix(${a} ${c} ${b} ${d} ${it.x} ${it.y})`;n.setAttribute('transform',n.dataset.t);
+    n.setAttribute('width',it.w);n.setAttribute('height',it.h);n.setAttribute('preserveAspectRatio','none');n.setAttribute('href',it.src);return n;}
   if(it.kind==='text'){const[a,b,c,d]=p.vt;const t=document.createElementNS(NS,'text');t.dataset.t=`matrix(${a} ${c} ${b} ${d} ${it.x} ${it.y})`;t.setAttribute('transform',t.dataset.t);
     t.setAttribute('font-size',it.size);t.setAttribute('fill',it.color);t.setAttribute('font-family','Helvetica, Arial, sans-serif');t.style.whiteSpace='pre';
     it.text.split('\n').forEach((l,k)=>{const s=document.createElementNS(NS,'tspan');s.setAttribute('x',0);s.setAttribute('y',r2(it.size*.9+k*it.size*1.2));s.textContent=l||' ';t.append(s);});return t;}
@@ -749,8 +757,8 @@ function itemNode(p,it){
   if(TOOLS[it.tool]&&TOOLS[it.tool].press){n.setAttribute('d',svgD(polySegs(outlinePoly(it.pts,it.w))));n.setAttribute('fill',it.color);if(it.op<1)n.setAttribute('fill-opacity',it.op);}
   else{n.setAttribute('d',svgD(monoSegs(it)));n.setAttribute('fill','none');n.setAttribute('stroke',it.color);n.setAttribute('stroke-width',it.w);n.setAttribute('stroke-linecap','round');n.setAttribute('stroke-linejoin','round');if(it.op<1)n.setAttribute('stroke-opacity',it.op);}
   return n;}
-function appendNode(p,it){const n=itemNode(p,it);p.nodes.set(it.id,n);(it.tool==='hl'?p.gH:p.gI).append(n);}
-function renderInk(p){p.gH.textContent='';p.gI.textContent='';p.nodes.clear();for(const it of(S.ann[p.i]||[]))appendNode(p,it);if(S.sel&&S.sel.pg===p.i)drawSel();}
+function appendNode(p,it){const n=itemNode(p,it);p.nodes.set(it.id,n);(it.kind==='image'?p.gImg:it.tool==='hl'?p.gH:p.gI).append(n);}
+function renderInk(p){p.gH.textContent='';p.gI.textContent='';p.gImg.textContent='';p.nodes.clear();for(const it of(S.ann[p.i]||[]))appendNode(p,it);if(S.sel&&S.sel.pg===p.i)drawSel();}
 
 /* ---------- storico e salvataggio ---------- */
 function markEdited(){if(S.meta){S.meta.editedAt=Date.now();updInd();}}
@@ -779,7 +787,7 @@ const selmenu=document.createElement('div');selmenu.className='selmenu';
 selmenu.innerHTML='<button data-s="del">Elimina</button><button data-s="dup">Duplica</button>';
 function clearSel(){if(!S.sel)return;const p=S.pages[S.sel.pg];if(p){p.gSel.textContent='';p.gG.textContent='';p.gG.removeAttribute('transform');}S.sel=null;selmenu.remove();renderDock();}
 function glowNode(p,it){const k=1/S.scale;
-  if(it.kind==='text'){const b=bboxOf(p,it),pad=3*k,r=document.createElementNS(NS,'rect');r.setAttribute('x',b[0]-pad);r.setAttribute('y',b[1]-pad);r.setAttribute('width',b[2]-b[0]+2*pad);r.setAttribute('height',b[3]-b[1]+2*pad);r.setAttribute('rx',3*k);r.setAttribute('class','glow-t');return r;}
+  if(it.kind==='text'||it.kind==='image'){const b=bboxOf(p,it),pad=3*k,r=document.createElementNS(NS,'rect');r.setAttribute('x',b[0]-pad);r.setAttribute('y',b[1]-pad);r.setAttribute('width',b[2]-b[0]+2*pad);r.setAttribute('height',b[3]-b[1]+2*pad);r.setAttribute('rx',3*k);r.setAttribute('class','glow-t');return r;}
   const press=TOOLS[it.tool]&&TOOLS[it.tool].press,n=document.createElementNS(NS,'path');
   n.setAttribute('d',press?svgD(polySegs(outlinePoly(it.pts,it.w))):svgD(monoSegs(it)));
   n.setAttribute('fill',press?'#0a84ff':'none');n.setAttribute('stroke','#0a84ff');n.setAttribute('stroke-width',press?7*k:it.w+7*k);
@@ -788,22 +796,24 @@ function drawSel(){if(!S.sel)return;const p=S.pages[S.sel.pg];p.gSel.textContent
   const items=(S.ann[p.i]||[]).filter(it=>S.sel.ids.has(it.id));if(!items.length){S.sel=null;selmenu.remove();return;}
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const it of items){const b=bboxOf(p,it);x0=Math.min(x0,b[0]);y0=Math.min(y0,b[1]);x1=Math.max(x1,b[2]);y1=Math.max(y1,b[3]);}
   S.sel.bb=[x0,y0,x1,y1];for(const it of items)p.gG.append(glowNode(p,it));
+  S.sel.handle=null;if(items.length===1&&items[0].kind==='image'){const hc=textCorners(p,items[0])[3],c=document.createElementNS(NS,'circle');
+    c.setAttribute('cx',hc[0]);c.setAttribute('cy',hc[1]);c.setAttribute('r',9/S.scale);c.setAttribute('class','sel-handle');p.gSel.append(c);S.sel.handle={x:hc[0],y:hc[1],node:c};}
   const cs=[[x0,y0],[x1,y0],[x0,y1],[x1,y1]].map(q=>apply(p.vt,q[0],q[1]));const vx=cs.map(c=>c[0]*S.scale),vy=cs.map(c=>c[1]*S.scale);
   const cx=(Math.min(...vx)+Math.max(...vx))/2;let top=Math.min(...vy)-52;if(top<6)top=Math.min(Math.max(...vy)+14,p.h-46);
   selmenu.style.left=clamp(cx,70,p.w-70)+'px';selmenu.style.top=Math.max(4,top)+'px';p.el.append(selmenu);}
 function selHit(p,pt){const s=S.sel;if(!s||s.pg!==p.i)return false;if(s.poly&&inPoly(pt[0],pt[1],s.poly))return true;
   const r=12/S.scale;return(S.ann[p.i]||[]).some(it=>s.ids.has(it.id)&&hitItem(p,it,pt[0],pt[1],r));}
 function selectIn(p,poly){const items=S.ann[p.i]||[],ids=new Set();
-  for(const it of items){if(it.kind==='text'){const b=bboxOf(p,it);if(inPoly((b[0]+b[2])/2,(b[1]+b[3])/2,poly))ids.add(it.id);continue;}
+  for(const it of items){if(it.kind==='text'||it.kind==='image'){const b=bboxOf(p,it);if(inPoly((b[0]+b[2])/2,(b[1]+b[3])/2,poly))ids.add(it.id);continue;}
     const pts=it.pts,n=pts.length/3,step=Math.max(1,Math.floor(n/200));let tot=0,ins=0;for(let i=0;i<n;i+=step){tot++;if(inPoly(pts[i*3],pts[i*3+1],poly))ins++;}if(tot&&ins/tot>=.5)ids.add(it.id);}
   if(ids.size){S.sel={pg:p.i,ids,poly:poly.slice()};drawSel();}renderDock();}
 const shiftPoly=(q,dx,dy)=>q?q.map((v,i)=>i%2?v+dy:v+dx):null;
-function shiftItem(it,dx,dy){if(it.kind==='text')return Object.assign({},it,{x:r2(it.x+dx),y:r2(it.y+dy)});return Object.assign({},it,{pts:it.pts.map((v,i)=>i%3===0?r2(v+dx):i%3===1?r2(v+dy):v)});}
+function shiftItem(it,dx,dy){if(it.kind==='text'||it.kind==='image')return Object.assign({},it,{x:r2(it.x+dx),y:r2(it.y+dy)});return Object.assign({},it,{pts:it.pts.map((v,i)=>i%3===0?r2(v+dx):i%3===1?r2(v+dy):v)});}
 function delSel(){if(!S.sel)return;const p=S.pages[S.sel.pg],ids=S.sel.ids;setItems(p.i,(S.ann[p.i]||[]).filter(it=>!ids.has(it.id)));clearSel();renderInk(p);}
 function dupSel(){if(!S.sel)return;const p=S.pages[S.sel.pg];const d=[p.inv[0]*14+p.inv[2]*14,p.inv[1]*14+p.inv[3]*14];const ids=new Set();
   const copies=(S.ann[p.i]||[]).filter(it=>S.sel.ids.has(it.id)).map(it=>{const c=shiftItem(it,d[0],d[1]);c.id=uid();ids.add(c.id);return c;});
   setItems(p.i,[...(S.ann[p.i]||[]),...copies]);S.sel={pg:p.i,ids,poly:shiftPoly(S.sel.poly,d[0],d[1])};renderInk(p);}
-function recolorSel(c){const p=S.pages[S.sel.pg];setItems(p.i,(S.ann[p.i]||[]).map(it=>S.sel.ids.has(it.id)?Object.assign({},it,{color:c}):it));renderInk(p);}
+function recolorSel(c){const p=S.pages[S.sel.pg];setItems(p.i,(S.ann[p.i]||[]).map(it=>S.sel.ids.has(it.id)&&it.kind!=='image'?Object.assign({},it,{color:c}):it));renderInk(p);}
 selmenu.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.s==='del')delSel();else dupSel();});
 
 /* ---------- testo ---------- */
@@ -886,6 +896,8 @@ function onDown(e){
   if(tool==='eraser'){if(S.sel)clearSel();liveOn(p);A={kind:'erase',p,r:T.widths[cfg.wi],removed:new Set(),id:e.pointerId,pixel:cfg.mode==='pixel',items:(S.ann[p.i]||[]).slice(),changed:false};
     A.ring=guide(p,'circle','ring');A.ring.setAttribute('r',A.r);A.ring.setAttribute('cx',pt[0]);A.ring.setAttribute('cy',pt[1]);eraseAt(pt);return;}
   if(tool==='lasso'){
+    const H=S.sel&&S.sel.pg===p.i&&S.sel.handle;
+    if(H&&Math.hypot(pt[0]-H.x,pt[1]-H.y)<22/S.scale){const it=(S.ann[p.i]||[]).find(q=>S.sel.ids.has(q.id));if(it){A={kind:'resize',p,it,w:it.w,h:it.h,id:e.pointerId};selmenu.remove();p.gG.textContent='';return;}}
     if(selHit(p,pt)){A={kind:'move',p,start:pt,dx:0,dy:0,id:e.pointerId};selmenu.remove();return;}
     clearSel();liveOn(p);A={kind:'lasso',p,poly:[pt[0],pt[1]],id:e.pointerId};A.node=guide(p,'path','lasso');return;}}
 function onMove(e){if(!A||e.pointerId!==A.id)return;
@@ -905,15 +917,18 @@ function onMove(e){if(!A||e.pointerId!==A.id)return;
   if(A.kind==='erase'){for(const ev of evs)eraseAt(toUser(p,ev.clientX,ev.clientY));A.ring.setAttribute('cx',pt[0]);A.ring.setAttribute('cy',pt[1]);return;}
   if(A.kind==='lasso'){const q=A.poly;if(Math.hypot(pt[0]-q[q.length-2],pt[1]-q[q.length-1])*S.scale<2)return;q.push(pt[0],pt[1]);
     let d='M'+fx(q[0])+' '+fx(q[1]);for(let i=2;i<q.length;i+=2)d+='L'+fx(q[i])+' '+fx(q[i+1]);A.node.setAttribute('d',d);return;}
+  if(A.kind==='resize'){const it=A.it,[a,b,c,d]=p.vt,dx=pt[0]-it.x,dy=pt[1]-it.y,lx=a*dx+c*dy,ly=b*dx+d*dy,ar=it.h/it.w;
+    A.w=clamp(Math.max(lx,ly/ar),12,p.w1*1.5);A.h=A.w*ar;const n=p.nodes.get(it.id);if(n){n.setAttribute('width',A.w);n.setAttribute('height',A.h);}
+    const hc=textCorners(p,Object.assign({},it,{w:A.w,h:A.h}))[3];if(S.sel.handle){S.sel.handle.node.setAttribute('cx',hc[0]);S.sel.handle.node.setAttribute('cy',hc[1]);}return;}
   if(A.kind==='move'){A.dx=pt[0]-A.start[0];A.dy=pt[1]-A.start[1];const tr=`translate(${A.dx} ${A.dy})`;
     for(const id of S.sel.ids){const n=p.nodes.get(id);if(n)n.setAttribute('transform',tr+(n.dataset.t?' '+n.dataset.t:''));}p.gG.setAttribute('transform',tr);}}
 function eraseAt(pt){const p=A.p;
   if(A.pixel){const out=[];let hit=false;
-    for(const it of A.items){if(!hitItem(p,it,pt[0],pt[1],A.r)){out.push(it);continue;}
+    for(const it of A.items){if(it.kind==='image'||!hitItem(p,it,pt[0],pt[1],A.r)){out.push(it);continue;}
       hit=true;const old=p.nodes.get(it.id);if(old){old.remove();p.nodes.delete(it.id);}
       if(it.kind==='text')continue;for(const pc of cutStroke(it,pt[0],pt[1],A.r)){out.push(pc);appendNode(p,pc);}}
     if(hit){A.items=out;A.changed=true;}return;}
-  for(const it of(S.ann[p.i]||[])){if(A.removed.has(it.id))continue;if(hitItem(p,it,pt[0],pt[1],A.r)){A.removed.add(it.id);const n=p.nodes.get(it.id);if(n)n.style.display='none';}}}
+  for(const it of(S.ann[p.i]||[])){if(A.removed.has(it.id)||it.kind==='image')continue;if(hitItem(p,it,pt[0],pt[1],A.r)){A.removed.add(it.id);const n=p.nodes.get(it.id);if(n)n.style.display='none';}}}
 /* gomma pixel: taglia il tratto dove passa la gomma e tiene i pezzi rimasti */
 function cutStroke(it,x,y,r){const src=it.pts,n=src.length/3,step=Math.max(.25,Math.min(r,it.w)*.4),rr=r+it.w*.35;
   const pts=[src[0],src[1],src[2]];for(let i=1;i<n;i++){const x0=src[i*3-3],y0=src[i*3-2],p0=src[i*3-1],x1=src[i*3],y1=src[i*3+1],p1=src[i*3+2],k=Math.max(1,Math.ceil(Math.hypot(x1-x0,y1-y0)/step));
@@ -930,6 +945,7 @@ function onUp(e){if(!A||e.pointerId!==A.id)return;const a=A;A=null;const p=a.p;
     const it={id:uid(),kind:'stroke',tool:a.tool,color:a.color,w:a.w,op:a.op,pts};addItem(p,it);liveOff(p);return;}
   if(a.kind==='erase'){liveOff(p);if(a.pixel){if(a.changed)setItems(p.i,a.items);renderInk(p);return;}if(a.removed.size){setItems(p.i,(S.ann[p.i]||[]).filter(it=>!a.removed.has(it.id)));renderInk(p);}return;}
   if(a.kind==='lasso'){liveOff(p);if(a.poly.length>=6)selectIn(p,a.poly);return;}
+  if(a.kind==='resize'){const it=a.it;if(Math.abs(a.w-it.w)>.2){setItems(p.i,(S.ann[p.i]||[]).map(q=>q.id===it.id?Object.assign({},q,{w:r2(a.w),h:r2(a.h)}):q));renderInk(p);}else drawSel();return;}
   if(a.kind==='move'){if(Math.abs(a.dx)+Math.abs(a.dy)>.2){S.sel.poly=shiftPoly(S.sel.poly,a.dx,a.dy);setItems(p.i,(S.ann[p.i]||[]).map(it=>S.sel.ids.has(it.id)?shiftItem(it,a.dx,a.dy):it));renderInk(p);}else drawSel();}}
 
 /* ---------- ricerca ---------- */
@@ -980,6 +996,18 @@ function addInk(doc,page,it){const{PDFName,PDFString}=PDFLib;const ctx=doc.conte
   page.node.addAnnot(ctx.register(an));}
 const ROTLIN={0:[1,0,0,-1],90:[0,1,1,0],180:[-1,0,0,1],270:[0,-1,-1,0]};
 function pageLin(page){const a=((page.getRotation().angle%360)+360)%360;return ROTLIN[a]||ROTLIN[0];}
+async function addImage(doc,page,it){const{PDFName,PDFString}=PDFLib;const ctx=doc.context;
+  const m=/^data:(image\/[a-z]+);base64,(.*)$/i.exec(it.src||'');if(!m)return;const bin=atob(m[2]),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  const img=/png/i.test(m[1])?await doc.embedPng(u8):await doc.embedJpg(u8);
+  const[a,b,c,d]=pageLin(page),w=it.w,h=it.h;
+  const corners=[[0,0],[w,0],[0,h],[w,h]].map(([lx,ly])=>[it.x+a*lx+b*ly,it.y+c*lx+d*ly]);
+  const rect=[Math.min(...corners.map(q=>q[0])),Math.min(...corners.map(q=>q[1])),Math.max(...corners.map(q=>q[0])),Math.max(...corners.map(q=>q[1]))].map(r2);
+  const cs=`q ${fx(a*w)} ${fx(c*w)} ${fx(-b*h)} ${fx(-d*h)} ${fx(it.x+b*h)} ${fx(it.y+d*h)} cm /Im0 Do Q`;
+  const ap=ctx.register(ctx.flateStream(cs,{Type:'XObject',Subtype:'Form',FormType:1,BBox:rect,Resources:{XObject:{Im0:img.ref}}}));
+  const an=ctx.obj({Type:'Annot',Subtype:'Stamp',Rect:rect,F:4,AP:{N:ap}});
+  an.set(PDFName.of('NM'),PDFString.of('margine-'+it.id));an.set(PDFName.of('MargineData'),ctx.register(ctx.flateStream(JSON.stringify(Object.assign({},it,{id:undefined})))));
+  an.set(PDFName.of('M'),PDFString.of(pdfDate()));an.set(PDFName.of('T'),PDFString.of('Margine'));an.set(PDFName.of('P'),page.ref);
+  page.node.addAnnot(ctx.register(an));}
 function addFreeText(doc,page,p,it,font,charset){const{PDFName,PDFString,PDFHexString}=PDFLib;const ctx=doc.context;const[r,g,b]=hex2rgb(it.color);const size=it.size,lh=size*1.2;
   const lines=it.text.split('\n').map(l=>[...l].map(ch=>charset.has(ch.codePointAt(0))?ch:'?').join(''));
   const W=Math.max(size*.4,...lines.map(l=>font.widthOfTextAtSize(l,size)))+2,H=lines.length*lh;
@@ -999,7 +1027,7 @@ async function buildExport(id,annPages,rot){if(!window.PDFLib)await loadScript(P
   const pages=doc.getPages();for(const[k,deg]of Object.entries(rot||{})){const pg=pages[+k];if(pg&&deg)pg.setRotation(PDFLib.degrees((((pg.getRotation().angle||0)+deg)%360+360)%360));}
   let font=null,charset=null;const entries=Object.entries(annPages||{}).filter(([,v])=>v&&v.length);let done=0;
   for(const[k,items]of entries){const page=pages[+k];if(!page)continue;
-    for(const it of items){if(it.kind==='text'){if(!font){font=await doc.embedFont(PDFLib.StandardFonts.Helvetica);charset=new Set(font.getCharacterSet());}addFreeText(doc,page,null,it,font,charset);}else addInk(doc,page,it);}
+    for(const it of items){if(it.kind==='text'){if(!font){font=await doc.embedFont(PDFLib.StandardFonts.Helvetica);charset=new Set(font.getCharacterSet());}addFreeText(doc,page,null,it,font,charset);}else if(it.kind==='image')await addImage(doc,page,it);else addInk(doc,page,it);}
     done++;if(done%5===0){busy('Aggiungo le annotazioni',.3+.45*done/entries.length);await tick();}}
   busy('Scrivo il file',.8);await tick(30);
   const out=await doc.save({useObjectStreams:false,addDefaultPage:false,updateFieldAppearances:false});
@@ -1100,6 +1128,27 @@ $('#bAddText').onclick=()=>{if(!S.pages.length)return;finishText();clearSel();cl
   const p=S.pages[findPage(sc.scrollTop+sc.clientHeight*.42)];p.rect=p.el.getBoundingClientRect();
   const sz=TOOLS.text.widths[S.cfg.text.wi]*S.scale,x=clamp(cx-sz*2,p.rect.left+8,p.rect.right-sz*5),y=clamp(cy-sz*.6,p.rect.top+8,p.rect.bottom-sz*2);
   startText(p,null,toUser(p,x,y));};
+/* immagine: ridotta a max 1600 px, JPEG se opaca, PNG se ha trasparenze; inserita al centro della pagina visibile */
+$('#bAddImg').onclick=()=>{if(!S.pages.length)return;finishText();closePop();$('#imgfile').click();};
+function loadImg(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>rej(new Error('Formato immagine non supportato'));im.src=src;});}
+$('#imgfile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||!S.pages.length)return;
+  busy('Preparo l’immagine');let src,nw,nh;
+  try{const u=URL.createObjectURL(f);let im;try{im=await loadImg(u);}finally{URL.revokeObjectURL(u);}
+    const k=Math.min(1,1600/Math.max(im.naturalWidth,im.naturalHeight));nw=Math.max(1,Math.round(im.naturalWidth*k));nh=Math.max(1,Math.round(im.naturalHeight*k));
+    const c=document.createElement('canvas');c.width=nw;c.height=nh;const x=c.getContext('2d');x.drawImage(im,0,0,nw,nh);
+    let alpha=false;if(/png|gif|webp/i.test(f.type)){const d=x.getImageData(0,0,nw,nh).data,st=Math.max(4,Math.floor(d.length/4/20000)*4);for(let i=3;i<d.length;i+=st)if(d[i]<250){alpha=true;break;}}
+    if(alpha)src=c.toDataURL('image/png');else{const c2=document.createElement('canvas');c2.width=nw;c2.height=nh;const x2=c2.getContext('2d');x2.fillStyle='#fff';x2.fillRect(0,0,nw,nh);x2.drawImage(c,0,0);src=c2.toDataURL('image/jpeg',.86);c2.width=c2.height=0;}
+    c.width=c.height=0;}
+  catch(err){unbusy();logErr('immagine',err);toast('Non riesco a leggere l’immagine: '+(err&&err.message||err),4500);return;}
+  unbusy();
+  const p=S.pages[findPage(sc.scrollTop+sc.clientHeight*.45)];p.rect=p.el.getBoundingClientRect();const r=sc.getBoundingClientRect();
+  const visW=Math.min(p.rect.right,r.right)-Math.max(p.rect.left,r.left),wS=Math.min(visW*.6,nw/DPR*1.2,p.rect.width*.9),hS=wS*nh/nw;
+  const cx=r.left+sc.clientWidth/2,cy=r.top+sc.clientHeight*.45,x0=clamp(cx-wS/2,p.rect.left+4,p.rect.right-wS-4),y0=clamp(cy-hS/2,p.rect.top+4,Math.max(p.rect.top+4,p.rect.bottom-hS-4));
+  const pt=toUser(p,x0,y0);const it={id:uid(),kind:'image',x:r2(pt[0]),y:r2(pt[1]),w:r2(wS/S.scale),h:r2(hS/S.scale),src};
+  addItem(p,it);
+  if(!S.markup){S.markup=true;showDock(true);$('#bMarkup').classList.add('on');}
+  S.tool='lasso';saveCfg();renderDock();S.sel={pg:p.i,ids:new Set([it.id]),poly:null};drawSel();
+  toast('Immagine inserita: trascinala con la Pencil, usa il pallino per ridimensionarla',4000);};
 $('#bRotate').onclick=()=>{if(S.pages.length)rotatePage(Math.max(0,S.cur));};
 $('#stBtn').onclick=()=>{if(S.statusFull)toast(S.statusFull,4500);};
 $('#bSearch').onclick=()=>el.sbar.hidden?openSearch():closeSearch();
