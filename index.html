@@ -107,7 +107,7 @@ svg{display:block}
 .tn{font-size:12px;color:var(--fg2);font-variant-numeric:tabular-nums;padding:1px 8px;border-radius:9px}
 .thumb.cur .tbox{box-shadow:0 0 0 3px var(--accent)}
 .thumb.cur .tn{background:var(--accent);color:#fff}
-.scroller{grid-row:2;grid-column:2;overflow:auto;background:var(--desk);touch-action:pan-x pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;position:relative}
+.scroller{grid-row:2;grid-column:2;overflow:auto;background:var(--desk);touch-action:none;overscroll-behavior:contain;position:relative}
 .pages{display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 16px 132px;min-width:100%;transform-origin:0 0;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .pages *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none}
 .pages .tedit{-webkit-user-select:text;user-select:text}
@@ -200,6 +200,12 @@ svg{display:block}
 .seg{display:flex;background:rgba(255,255,255,.1);border-radius:12px;padding:3px;gap:3px}
 .seg button{flex:1;padding:9px 6px;border-radius:9px;font-size:14px;font-weight:600;color:rgba(255,255,255,.75)}
 .seg button.on{background:rgba(255,255,255,.22);color:#fff}
+.lockbar{grid-row:2;grid-column:2;justify-self:end;align-self:stretch;position:relative;width:44px;margin:12px max(2px,env(safe-area-inset-right,0px)) 104px 0;z-index:16;touch-action:none;cursor:grab}
+.lockbar::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:4px;margin-left:-2px;border-radius:2px;background:color-mix(in srgb,var(--fg) 16%,transparent)}
+.lb-thumb{position:absolute;left:50%;top:0;width:8px;height:56px;margin-left:-4px;border-radius:4px;background:var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.25);transition:width .12s,margin .12s}
+.lockbar.drag .lb-thumb{width:12px;margin-left:-6px}
+.lb-tip{position:absolute;right:40px;transform:translateY(-50%);background:#1c1c1e;color:#fff;font:600 13px var(--sans);font-variant-numeric:tabular-nums;padding:6px 10px;border-radius:9px;white-space:nowrap;pointer-events:none}
+.reader.focus .lockbar{margin-top:66px}
 .ruler-layer{grid-row:2;grid-column:2;position:relative;pointer-events:none;overflow:hidden;z-index:14}
 .ruler{position:absolute;left:0;top:0;height:72px;transform-origin:50% 50%;border-radius:6px;background:rgba(48,48,52,.62);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);box-shadow:0 4px 18px rgba(0,0,0,.25),inset 0 0 0 1px rgba(255,255,255,.14)}
 .ruler::before,.ruler::after{content:"";position:absolute;left:0;right:0;height:16px;background:repeating-linear-gradient(to right,rgba(255,255,255,.95) 0 1.5px,transparent 1.5px 50px) 0 0/100% 16px no-repeat,repeating-linear-gradient(to right,rgba(255,255,255,.7) 0 1px,transparent 1px 10px) 0 0/100% 8px no-repeat}
@@ -262,6 +268,7 @@ svg{display:block}
     </div>
     <div class="ttl"><b id="docName"></b><span class="sub"><span id="pageInd"></span> · <span id="expSt"></span></span></div>
     <div class="pill">
+      <button class="ib" id="bLock" aria-label="Blocca pagina" title="Blocca pagina"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 7.6-1.8"/></svg></button>
       <button class="ib on" id="bMarkup" aria-label="Annotazioni"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M9.2 16.3 14.6 7.5l1.9 1.2-5.4 8.8-2.3.9z" stroke-linejoin="round"/></svg></button>
       <button class="ib" id="bSave" aria-label="Salva in File" title="Salva in File"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/><path d="M8 4v5h7V4"/><rect x="8" y="13" width="8" height="5" rx="1"/></svg></button>
       <button class="ib" id="bSearch" aria-label="Cerca"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5" stroke-linecap="round"/></svg></button>
@@ -270,6 +277,7 @@ svg{display:block}
     </div>
   </header>
   <div class="fbar" id="fbar"><span class="fdot" id="fdot"></span><span id="pageInd2"></span>
+    <button class="ib" id="bLock2" aria-label="Blocca pagina" title="Blocca pagina"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 7.6-1.8"/></svg></button>
     <button class="ib" id="bHome2" aria-label="Torna alla libreria"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h4.5v-5h3v5H18v-9"/></svg></button>
     <button class="ib" id="bSave2" aria-label="Salva in File" title="Salva in File"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/><path d="M8 4v5h7V4"/><rect x="8" y="13" width="8" height="5" rx="1"/></svg></button>
     <button class="ib" id="bSearch2" aria-label="Cerca"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5" stroke-linecap="round"/></svg></button>
@@ -277,6 +285,7 @@ svg{display:block}
   </div>
   <aside class="side-pane" id="side"><div class="thumbs" id="thumbs"></div></aside>
   <div class="scroller" id="scroller"><div class="pages" id="pages"></div></div>
+  <div class="lockbar" id="lockbar" hidden aria-label="Scorri il documento"><div class="lb-thumb" id="lbThumb"></div><div class="lb-tip" id="lbTip" hidden></div></div>
   <div class="ruler-layer" id="rulerLayer"><div class="ruler" id="ruler" hidden><span class="ang" id="rulerAng">0°</span></div></div>
 
   <div class="searchbar" id="searchbar" hidden>
@@ -389,8 +398,8 @@ const DB=(()=>{let p=null;
 
 function loadCfg(){let saved={};try{saved=JSON.parse(localStorage.getItem('margine.cfg')||'{}');}catch(e){}
   for(const t of ORDER){if(TOOLS[t].def)S.cfg[t]=Object.assign({},TOOLS[t].def,(saved.cfg||{})[t]||{});}
-  if(saved.tool&&TOOLS[saved.tool]&&saved.tool!=='line')S.tool=saved.tool; if(saved.lastInk&&TOOLS[saved.lastInk]&&saved.lastInk!=='line')S.lastInk=saved.lastInk; if(saved.custom)S.custom=saved.custom;if(saved.focus){S.focus=true;el.reader.classList.add('focus');}}
-function saveCfg(){try{localStorage.setItem('margine.cfg',JSON.stringify({cfg:S.cfg,tool:S.tool,lastInk:S.lastInk,custom:S.custom,focus:!!S.focus}));}catch(e){}}
+  if(saved.tool&&TOOLS[saved.tool]&&saved.tool!=='line')S.tool=saved.tool; if(saved.lastInk&&TOOLS[saved.lastInk]&&saved.lastInk!=='line')S.lastInk=saved.lastInk; if(saved.custom)S.custom=saved.custom;if(saved.lock)S.lock=true;if(saved.focus){S.focus=true;el.reader.classList.add('focus');}}
+function saveCfg(){try{localStorage.setItem('margine.cfg',JSON.stringify({cfg:S.cfg,tool:S.tool,lastInk:S.lastInk,custom:S.custom,focus:!!S.focus,lock:!!S.lock}));}catch(e){}}
 
 /* ---------- PDF.js worker ---------- */
 async function setupWorker(){
@@ -831,7 +840,10 @@ function onDown(e){
   if(!S.markup||A)return;
   if(e.pointerType==='mouse'&&e.button!==0)return;
   closePop();el.menu.hidden=true;
-  const pe=e.target.closest('.page');const isTouch=e.pointerType==='touch';
+  const isTouch=e.pointerType==='touch';
+  if(isTouch&&(penBusy()||TOUCH.palm||TOUCH.f.size>0||Math.max(e.width||0,e.height||0)>2*PALM.radius))return;
+  const tgt=PALM.reverted?(document.elementFromPoint(e.clientX,e.clientY)||e.target):e.target;PALM.reverted=false;
+  const pe=tgt.closest&&tgt.closest('.page');
   if(!pe){if(S.sel&&!isTouch)clearSel();return;}
   const p=S.pages[+pe.dataset.i];p.rect=pe.getBoundingClientRect();const pt=toUser(p,e.clientX,e.clientY);const tool=S.tool;
   if(tool==='text'){A={kind:'tap',p,x:e.clientX,y:e.clientY,id:e.pointerId};return;}
@@ -881,7 +893,7 @@ function cutStroke(it,x,y,r){const src=it.pts,n=src.length/3,step=Math.max(.25,M
   if(cur.length>=6)pieces.push(cur);
   const press=TOOLS[it.tool]&&TOOLS[it.tool].press;return pieces.map(pc=>Object.assign({},it,{id:uid(),pts:simplify(pc,press?.04:.08)}));}
 function onUp(e){if(!A||e.pointerId!==A.id)return;const a=A;A=null;const p=a.p;
-  if(a.kind==='tap'){if(e.type==='pointercancel')return;if(Math.hypot(e.clientX-a.x,e.clientY-a.y)>10)return;p.rect=p.el.getBoundingClientRect();
+  if(a.kind==='tap'){if(e.type==='pointercancel'||TOUCH.palm||penBusy())return;if(Math.hypot(e.clientX-a.x,e.clientY-a.y)>10)return;p.rect=p.el.getBoundingClientRect();
     const pt=toUser(p,e.clientX,e.clientY);const hit=hitText(p,pt[0],pt[1]);
     if(hit)startText(p,hit);else{const sz=TOOLS.text.widths[S.cfg.text.wi];startText(p,null,toUser(p,e.clientX-2,e.clientY-sz*S.scale*.62));}return;}
   if(a.kind==='draw'&&!a.snap&&a.raw){const n=a.pts.length;if(Math.hypot(a.raw[0]-a.pts[n-3],a.raw[1]-a.pts[n-2])>.05)a.pts.push(a.raw[0],a.raw[1],a.raw[2]);}
@@ -1006,7 +1018,7 @@ async function showDiag(){const box=$('#diag');if(!box.hidden){box.hidden=true;r
   info.contesto=(window.top!==window?'pagina dentro claude.ai':(navigator.standalone||matchMedia('(display-mode: standalone)').matches)?'app sulla schermata Home':'pagina diretta')+(/CriOS|FxiOS/.test(navigator.userAgent)?'':(/Safari/.test(navigator.userAgent)?' · Safari':' · app'));
   let log=[];try{log=JSON.parse(localStorage.getItem('margine.log')||'[]');}catch(e){}
   let warn='';try{const est=navigator.storage&&navigator.storage.estimate?await navigator.storage.estimate():null;if(est&&est.quota&&est.usage/est.quota>.8)warn='<p style="margin:0;color:var(--danger);font-weight:600">Spazio quasi esaurito: rimuovi dalla libreria i PDF che non usi.</p>';}catch(e){}
-  const rows=[['Dati di Margine',info.mine],['Stima di Safari',info.uso],['Archivio persistente',info.persistente],['Documenti in libreria',info.docs],['File PDF salvati',info.files],['Annotazioni salvate',info.annots],['Contesto',info.contesto]];
+  const rows=[['Dati di Margine',info.mine],['Stima di Safari',info.uso],['Archivio persistente',info.persistente],['Documenti in libreria',info.docs],['File PDF salvati',info.files],['Annotazioni salvate',info.annots],['Contatti dita (raggio)',RADII.length?(RADII.some(v=>v>0)?RADII.join(', ')+' px, soglia palmo '+PALM.radius:'non forniti dall’iPad'):'nessuno in questa sessione'],['Contesto',info.contesto]];
   const logTxt=log.length?log.slice(-15).reverse().map(l=>`${l.t.replace('T',' ').slice(0,19)}  ${l.w}  ${l.n} ${l.m}`).join('\n'):'Nessun errore registrato';
   box.innerHTML=`${warn}<dl>${rows.map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join('')}</dl><p style="margin:0;color:var(--fg2)">“Dati di Margine” è quanto occupano davvero i tuoi PDF e le annotazioni. “Stima di Safari” è il valore che Safari dichiara per questa pagina: può includere spazio già liberato ma non ancora restituito e si aggiorna quando decide Safari, quindi può restare alto anche con la libreria vuota. Il limite è lo spazio che Safari concede a questa pagina. Se lo raggiungi, i nuovi salvataggi non riescono ma non viene cancellato nulla: libera spazio rimuovendo PDF dalla libreria. Archivio non persistente vuol dire che, se l’iPad resta senza memoria o se non apri la pagina per molti giorni, il sistema può cancellare i dati di questa pagina. Per questo il tuo PDF sicuro è quello salvato in File.</p><b>Eventi recenti</b><pre>${esc(logTxt)}</pre><button class="linkbtn" id="diagCopy">Copia diagnostica</button>`;
   const nd=+info.docs||0;
@@ -1081,7 +1093,7 @@ el.qlist.addEventListener('click',e=>{const r=e.target.closest('.qrow');if(!r)re
 $('#qprev').onclick=()=>{gotoMatch(S.mi-1);el.qlist.hidden=true;};$('#qnext').onclick=()=>{gotoMatch(S.mi+1);el.qlist.hidden=true;};$('#qclose').onclick=closeSearch;
 
 const sc=el.scroller;
-sc.addEventListener('pointerdown',onDown);sc.addEventListener('pointermove',onMove);sc.addEventListener('pointerup',onUp);
+/* gli handler del disegno sono registrati dopo il controllo del palmo (vedi sotto) */
 /* iPadOS a volte annulla l'input della Pencil se resta ferma: il tratto non si chiude, continua con gli eventi touch finché la Pencil non si stacca */
 function finishSuspended(){if(!A||!A.suspended)return;clearTimeout(A.susT);onUp({pointerId:A.id,type:'pointerup'});}
 sc.addEventListener('pointercancel',e=>{if(A&&e.pointerId===A.id&&A.kind==='draw'&&e.pointerType!=='touch'){A.suspended=true;logErr('tratto annullato da iPadOS, ripreso',e.pointerType);A.susT=setTimeout(finishSuspended,1500);return;}onUp(e);});
@@ -1094,16 +1106,106 @@ const susEnd=e=>{if(A&&A.suspended&&![...e.touches].some(t=>t.touchType==='stylu
 sc.addEventListener('touchend',susEnd);sc.addEventListener('touchcancel',susEnd);
 sc.addEventListener('contextmenu',e=>e.preventDefault());sc.addEventListener('selectstart',e=>{const n=e.target&&e.target.nodeType===3?e.target.parentNode:e.target;if(!n||!n.closest||!n.closest('.tedit'))e.preventDefault();});
 sc.addEventListener('dragstart',e=>e.preventDefault());
-const stylusBlock=e=>{if(rulerTouch(e))return;if(!S.markup||S.tool==='text')return;const t=e.touches&&e.touches[0];if(!t||t.touchType!=='stylus')return;if(e.target.closest&&e.target.closest('.tedit,.selmenu'))return;e.preventDefault();};
-sc.addEventListener('touchstart',stylusBlock,{passive:false});sc.addEventListener('touchmove',stylusBlock,{passive:false});
-sc.addEventListener('touchend',e=>{rulerTouch(e);},{passive:false});sc.addEventListener('touchcancel',e=>{rulerTouch(e);},{passive:false});
-let scrollRaf=0;sc.addEventListener('scroll',()=>{if(scrollRaf)return;scrollRaf=requestAnimationFrame(()=>{scrollRaf=0;updateNear();updateCur();});},{passive:true});
+
+/* ---------- dita: scorrimento, zoom e rifiuto del palmo ----------
+   Le dita sul foglio sono gestite qui (non dal browser), così ogni tocco può essere scartato come palmo:
+   - mentre la Pencil scrive e per PALM.cool ms dopo, i nuovi tocchi sono palmo;
+   - quando la Pencil tocca, le dita già appoggiate diventano palmo e il loro piccolo spostamento viene annullato;
+   - contatti larghi (se l'iPad ne riporta il raggio) e gruppi di 3+ dita sono palmo;
+   - lo zoom parte solo con due dita che si muovono entrambe e con una variazione netta. */
+const PALM={penDown:false,penT:0,cool:600,radius:40,reverted:false,hintT:0};
+const TOUCH={f:new Map(),pan:null,pinch:null,palm:false,gs:null};
+const RADII=[];
+function penBusy(){return S.markup&&(PALM.penDown||performance.now()-PALM.penT<PALM.cool);}
+const tRadius=t=>Math.max(t.radiusX||0,t.radiusY||0,t.webkitRadiusX||0,t.webkitRadiusY||0);
+let MOM=0;
+function stopMom(){if(MOM){cancelAnimationFrame(MOM);MOM=0;}}
+function momentum(vx,vy){stopMom();let last=performance.now(),px=sc.scrollLeft,py=sc.scrollTop;
+  const stepF=t=>{const dt=clamp(t-last,0,34);last=t;px-=vx*dt;py-=vy*dt;sc.scrollLeft=px;sc.scrollTop=py;
+    if(Math.abs(sc.scrollLeft-px)>1.5){vx=0;px=sc.scrollLeft;}if(Math.abs(sc.scrollTop-py)>1.5){vy=0;py=sc.scrollTop;}
+    const f=Math.pow(.9975,dt);vx*=f;vy*=f;MOM=Math.hypot(vx,vy)>.02?requestAnimationFrame(stepF):0;};
+  MOM=requestAnimationFrame(stepF);}
+const validFingers=()=>[...TOUCH.f.entries()].filter(([,f])=>!f.palm&&!f.spent);
+function cancelFingers(cluster){if(cluster)TOUCH.palm=true;for(const f of TOUCH.f.values())f.palm=true;stopMom();
+  if(TOUCH.pinch&&TOUCH.pinch.on)el.pages.style.transform='';
+  if(TOUCH.pan&&TOUCH.pan.on&&TOUCH.gs){const dx=sc.scrollLeft-TOUCH.gs.sx,dy=sc.scrollTop-TOUCH.gs.sy;
+    if(Math.hypot(dx,dy)<90){sc.scrollLeft=TOUCH.gs.sx;sc.scrollTop=TOUCH.gs.sy;PALM.reverted=true;}}
+  TOUCH.pan=TOUCH.pinch=null;}
+function penLanded(){PALM.penDown=true;PALM.penT=performance.now();stopMom();if(RU.g)RU.g=null;if(TOUCH.f.size)cancelFingers(false);}
+function lockHint(){const n=performance.now();if(n-PALM.hintT<8000)return;PALM.hintT=n;toast('Pagina bloccata: scorri con la barra a destra o sblocca con il lucchetto',3500);}
+function fingerStart(e){const now=performance.now();let stylus=false;
+  for(const t of e.changedTouches){if(t.touchType==='stylus'&&S.markup){stylus=true;continue;}
+    const r=tRadius(t);RADII.push(Math.round(r));if(RADII.length>12)RADII.shift();
+    if(!TOUCH.f.size)TOUCH.gs={sx:sc.scrollLeft,sy:sc.scrollTop,t:now};
+    TOUCH.f.set(t.identifier,{x:t.clientX,y:t.clientY,x0:t.clientX,y0:t.clientY,palm:penBusy()||r>PALM.radius,spent:false});}
+  if(stylus)penLanded();
+  if(validFingers().length>=3)cancelFingers(true);
+  if(S.lock||TOUCH.palm)return;
+  stopMom();const v=validFingers();
+  if(v.length===1&&!TOUCH.pan&&!TOUCH.pinch){const[id,f]=v[0];TOUCH.pan={id,on:false,lx:f.x,ly:f.y,lt:now,vx:0,vy:0,px:sc.scrollLeft,py:sc.scrollTop};}
+  else if(v.length===2&&!TOUCH.pinch){const[[ia,a],[ib,b]]=v;TOUCH.pan=null;TOUCH.pinch={ia,ib,a0:{x:a.x,y:a.y},b0:{x:b.x,y:b.y},on:false};}}
+function fingerMove(e){const now=performance.now();let stylus=false;
+  for(const t of e.changedTouches){if(t.touchType==='stylus'&&S.markup){stylus=true;continue;}const f=TOUCH.f.get(t.identifier);if(f){f.x=t.clientX;f.y=t.clientY;}}
+  if(stylus){PALM.penDown=true;PALM.penT=now;}
+  if(S.lock){for(const f of TOUCH.f.values())if(!f.palm&&Math.hypot(f.x-f.x0,f.y-f.y0)>24){lockHint();break;}return;}
+  if(TOUCH.palm)return;
+  const P=TOUCH.pan;
+  if(P){const f=TOUCH.f.get(P.id);if(!f||f.palm)return;
+    if(!P.on){if(Math.hypot(f.x-f.x0,f.y-f.y0)<10)return;P.on=true;P.lx=f.x;P.ly=f.y;P.lt=now;P.px=sc.scrollLeft;P.py=sc.scrollTop;return;}
+    const dx=f.x-P.lx,dy=f.y-P.ly,dt=Math.max(1,now-P.lt);P.lx=f.x;P.ly=f.y;P.lt=now;
+    P.px=clamp(P.px-dx,0,sc.scrollWidth-sc.clientWidth);P.py=clamp(P.py-dy,0,sc.scrollHeight-sc.clientHeight);sc.scrollLeft=P.px;sc.scrollTop=P.py;
+    P.vx=P.vx*.55+(dx/dt)*.45;P.vy=P.vy*.55+(dy/dt)*.45;return;}
+  const Q=TOUCH.pinch;
+  if(Q){const a=TOUCH.f.get(Q.ia),b=TOUCH.f.get(Q.ib);if(!a||!b||a.palm||b.palm)return;
+    const r=sc.getBoundingClientRect(),d=Math.hypot(b.x-a.x,b.y-a.y),mx=(a.x+b.x)/2-r.left,my=(a.y+b.y)/2-r.top;
+    if(!Q.on){const ma=Math.hypot(a.x-Q.a0.x,a.y-Q.a0.y),mb=Math.hypot(b.x-Q.b0.x,b.y-Q.b0.y),d0=Math.max(1,Math.hypot(Q.b0.x-Q.a0.x,Q.b0.y-Q.a0.y));
+      const m0x=(Q.a0.x+Q.b0.x)/2-r.left,m0y=(Q.a0.y+Q.b0.y)/2-r.top;
+      if(!(ma>6&&mb>6&&(Math.abs(Math.log(d/d0))>.1||Math.hypot(mx-m0x,my-m0y)>30)))return;
+      Q.on=true;Q.d0=d;Q.mx0=mx;Q.my0=my;Q.z0=S.zoom;Q.kk=1;Q.tx=0;Q.ty=0;finishText();
+      el.pages.style.transformOrigin=`${sc.scrollLeft+mx}px ${sc.scrollTop+my}px`;return;}
+    Q.kk=clamp(Q.z0*d/Q.d0,ZMIN,ZMAX)/Q.z0;Q.tx=mx-Q.mx0;Q.ty=my-Q.my0;el.pages.style.transform=`translate(${Q.tx}px,${Q.ty}px) scale(${Q.kk})`;}}
+function fingerEnd(e){const now=performance.now();let stylus=false;
+  for(const t of e.changedTouches){if(t.touchType==='stylus'&&S.markup){stylus=true;continue;}
+    const id=t.identifier,Q=TOUCH.pinch,P=TOUCH.pan;
+    if(Q&&(id===Q.ia||id===Q.ib)){TOUCH.pinch=null;if(Q.on){el.pages.style.transform='';if(!TOUCH.palm&&e.type!=='touchcancel'){setZoom(Q.z0*Q.kk,Q.mx0,Q.my0);sc.scrollLeft-=Q.tx;sc.scrollTop-=Q.ty;updateNear();}}
+      for(const f of TOUCH.f.values())f.spent=true;}
+    if(P&&id===P.id){TOUCH.pan=null;if(P.on&&!TOUCH.palm&&now-P.lt<90){const v=Math.hypot(P.vx,P.vy);if(v>.15){const k=Math.min(1,6/v);momentum(P.vx*k,P.vy*k);}}}
+    TOUCH.f.delete(id);}
+  if(stylus&&![...e.touches].some(t=>t.touchType==='stylus')){PALM.penDown=false;PALM.penT=now;}
+  if(!TOUCH.f.size){TOUCH.palm=false;TOUCH.gs=null;}}
+function onTouch(e){const n=e.target;if(n&&n.closest&&n.closest('.tedit,.selmenu'))return;
+  const typ=e.type,textTap=S.markup&&S.tool==='text'&&typ!=='touchmove';
+  if(e.cancelable&&!textTap)e.preventDefault();
+  if(typ==='touchstart'){const ae=document.activeElement;if(ae&&ae.matches&&ae.matches('input'))ae.blur();}
+  if(RU.on){if(penBusy()||TOUCH.palm)RU.g=null;else if((RU.g||typ==='touchstart')&&rulerTouch(e))return;}
+  if(typ==='touchstart')fingerStart(e);else if(typ==='touchmove')fingerMove(e);else fingerEnd(e);}
+['touchstart','touchmove','touchend','touchcancel'].forEach(t=>sc.addEventListener(t,onTouch,{passive:false}));
+/* la Pencil viene tracciata prima che parta il disegno, così il palmo appoggiato viene annullato in tempo */
+sc.addEventListener('pointerdown',e=>{if(e.pointerType==='pen'&&S.markup)penLanded();});
+sc.addEventListener('pointermove',e=>{if(e.pointerType==='pen'&&S.markup&&e.buttons)PALM.penT=performance.now();},{passive:true});
+sc.addEventListener('pointerup',e=>{if(e.pointerType==='pen'){PALM.penDown=false;PALM.penT=performance.now();}});
+sc.addEventListener('pointercancel',e=>{if(e.pointerType==='pen')PALM.penT=performance.now();});
+
+/* ---------- blocco pagina e barra di scorrimento ---------- */
+const LOCK_ON='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>',LOCK_OFF='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 7.6-1.8"/></svg>';
+const LB={el:$('#lockbar'),th:$('#lbThumb'),tip:$('#lbTip'),drag:false};
+function lbUpdate(){if(LB.el.hidden||!S.pages.length)return;const H=LB.el.clientHeight,th=LB.th.offsetHeight,max=sc.scrollHeight-sc.clientHeight,f=max>0?sc.scrollTop/max:0,y=f*(H-th);
+  LB.th.style.top=y+'px';if(LB.drag){LB.tip.style.top=(y+th/2)+'px';LB.tip.textContent=`Pag. ${Math.max(0,S.cur)+1} di ${S.pages.length}`;}}
+function lbSet(cy){const r=LB.el.getBoundingClientRect(),th=LB.th.offsetHeight,f=clamp((cy-r.top-th/2)/Math.max(1,r.height-th),0,1);sc.scrollTop=f*(sc.scrollHeight-sc.clientHeight);}
+LB.el.addEventListener('pointerdown',e=>{e.preventDefault();stopMom();LB.drag=true;LB.el.classList.add('drag');LB.tip.hidden=false;try{LB.el.setPointerCapture(e.pointerId);}catch(_){}lbSet(e.clientY);});
+LB.el.addEventListener('pointermove',e=>{if(LB.drag)lbSet(e.clientY);});
+const lbEnd=()=>{LB.drag=false;LB.el.classList.remove('drag');LB.tip.hidden=true;};
+LB.el.addEventListener('pointerup',lbEnd);LB.el.addEventListener('pointercancel',lbEnd);
+LB.el.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
+function setLock(on,quiet){S.lock=!!on;saveCfg();
+  for(const b of[$('#bLock'),$('#bLock2')]){b.innerHTML=S.lock?LOCK_ON:LOCK_OFF;b.classList.toggle('on',S.lock);const l=S.lock?'Sblocca pagina':'Blocca pagina';b.setAttribute('aria-label',l);b.title=l;}
+  LB.el.hidden=!S.lock;stopMom();if(TOUCH.pinch&&TOUCH.pinch.on)el.pages.style.transform='';TOUCH.pan=TOUCH.pinch=null;requestAnimationFrame(lbUpdate);
+  if(!quiet)toast(S.lock?'Pagina bloccata: le dita non spostano né ingrandiscono. Scorri con la barra a destra.':'Pagina sbloccata',3200);}
+$('#bLock').onclick=()=>setLock(!S.lock);$('#bLock2').onclick=()=>setLock(!S.lock);
+let scrollRaf=0;sc.addEventListener('scroll',()=>{if(scrollRaf)return;scrollRaf=requestAnimationFrame(()=>{scrollRaf=0;updateNear();updateCur();lbUpdate();});},{passive:true});
 sc.addEventListener('wheel',e=>{if(!e.ctrlKey)return;e.preventDefault();const r=sc.getBoundingClientRect();setZoom(S.zoom*Math.exp(-e.deltaY*.01),e.clientX-r.left,e.clientY-r.top);},{passive:false});
-let G=null;
-sc.addEventListener('gesturestart',e=>{e.preventDefault();if(A||RU.g||!S.pages.length)return;const r=sc.getBoundingClientRect();G={z:S.zoom,cx:e.clientX-r.left,cy:e.clientY-r.top,k:1};
-  el.pages.style.transformOrigin=`${sc.scrollLeft+G.cx}px ${sc.scrollTop+G.cy}px`;});
-sc.addEventListener('gesturechange',e=>{e.preventDefault();if(!G)return;G.k=clamp(G.z*e.scale,ZMIN,ZMAX)/G.z;el.pages.style.transform=`scale(${G.k})`;});
-sc.addEventListener('gestureend',e=>{e.preventDefault();if(!G)return;const g=G;G=null;el.pages.style.transform='';setZoom(g.z*g.k,g.cx,g.cy);});
+sc.addEventListener('pointerdown',onDown);sc.addEventListener('pointermove',onMove);sc.addEventListener('pointerup',onUp);
+['gesturestart','gesturechange','gestureend'].forEach(t=>sc.addEventListener(t,e=>e.preventDefault()));
 document.addEventListener('gesturestart',e=>e.preventDefault());
 let lastW=0;new ResizeObserver(()=>{if(!S.pages.length||el.reader.hidden)return;const w=sc.clientWidth;if(w===lastW)return;lastW=w;
   const i=Math.max(0,S.cur),p=S.pages[i],f=p?(sc.scrollTop-p.top)/p.h:0;finishText();layout();if(p)sc.scrollTop=p.top+f*p.h;updateNear();}).observe(sc);
@@ -1114,7 +1216,7 @@ document.addEventListener('keydown',e=>{if(!S.doc||S.editing||(e.target.closest&
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&S.meta){saveAnnNow();saveMeta(true);}});
 window.addEventListener('pagehide',()=>{if(S.meta){saveAnnNow();}});
 
-loadCfg();buildSwatches();renderDock();renderRecents();
+loadCfg();buildSwatches();renderDock();renderRecents();setLock(!!S.lock,true);
 /* nell'app Claude (WebView senza "Safari/" nello user agent) l'archivio della pagina non sopravvive alla chiusura dell'app */
 const IN_APP=window.top!==window&&/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&!/Safari\//.test(navigator.userAgent)&&navigator.maxTouchPoints>0;
 if(STANDALONE&&'serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(e=>logErr('offline',e));
