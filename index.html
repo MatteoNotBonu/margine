@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='833373b';</script>
+<script>window.MARGINE_VER='176709c';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -212,14 +212,16 @@ svg{display:block}
 .fbar{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));z-index:22;display:flex;align-items:center;gap:2px;background:var(--chrome);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-radius:999px;padding:3px 3px 3px 12px;box-shadow:var(--shadow)}
 .fbar span{font-size:12px;color:var(--fg2);font-variant-numeric:tabular-nums;margin-right:4px}
 .reader:not(.focus) .fbar{display:none}
-.fbar{overflow:hidden;max-width:560px;height:44px;touch-action:none;transition:max-width .46s cubic-bezier(.3,1.15,.4,1),padding .3s ease,transform .32s cubic-bezier(.2,1.2,.4,1)}
+.fbar{overflow:hidden;max-width:560px;height:44px;touch-action:none;transition:max-width .42s cubic-bezier(.22,1,.36,1),padding-left .42s cubic-bezier(.22,1,.36,1)}
 .fbar>*{flex-shrink:0}
 .fbar>*:not(.fknob){transition:opacity .22s ease .1s}
 .fbar.drag{transition:none}
-.fbar.mini{max-width:44px;padding:0;transition:max-width .34s cubic-bezier(.5,0,.3,1),padding .3s ease,transform .32s cubic-bezier(.2,1.2,.4,1)}
+.fbar.drag>*:not(.fknob){opacity:calc(1 - var(--p,0)*1.6);transition:none}
+.fbar.drag .fknob{opacity:calc(var(--p,0)*2 - 1);transform:none;transition:none}
+.fbar.mini{max-width:44px;padding:0;transition:max-width .32s cubic-bezier(.22,1,.36,1),padding .32s cubic-bezier(.22,1,.36,1)}
 .fbar.mini>*:not(.fknob){opacity:0;pointer-events:none;transition-delay:0s;transition-duration:.12s}
 .fknob{position:absolute;right:0;top:0;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--fg);opacity:0;transform:scale(.5) rotate(-90deg);pointer-events:none;transition:opacity .15s ease,transform .2s ease}
-.fbar.mini .fknob{opacity:1;transform:none;pointer-events:auto;transition:opacity .2s ease .18s,transform .45s cubic-bezier(.2,1.6,.4,1) .14s}
+.fbar.mini .fknob{opacity:1;transform:none;pointer-events:auto;transition:opacity .18s ease .08s,transform .4s cubic-bezier(.2,1.5,.4,1) .04s}
 .fknob .kdot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--fg2);opacity:.6}
 .fknob .kdot.warn{background:var(--warn);opacity:1}.fknob .kdot.ok{background:var(--ok);opacity:1}.fknob .kdot.err{background:var(--danger);opacity:1}
 .toast{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom,0px));transform:translate(-50%,12px);opacity:0;z-index:70;background:#1c1c1e;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:calc(100% - 32px);text-align:center;transition:opacity .2s,transform .2s;pointer-events:none}
@@ -1320,17 +1322,21 @@ window.addEventListener('pagehide',()=>{if(S.meta){saveAnnNow();}});
 
 loadCfg();buildSwatches();renderDock();renderRecents();setLock(!!S.lock,true);
 /* barra a schermo intero: swipe verso destra la chiude in un cerchio, tocco sul cerchio la riapre */
-(()=>{const fb=$('#fbar');let sx=0,sy=0,dx=0,on=false,swiped=false,t0=0;
+(()=>{const fb=$('#fbar');let sx=0,sy=0,dx=0,on=false,swiped=false,t0=0,FULL=270;
   const setMini=m=>{S.fmini=!!m;fb.classList.toggle('mini',S.fmini);saveCfg();};
   setMini(S.fmini);
-  fb.addEventListener('touchstart',e=>{const t=e.touches[0];if(!t||e.touches.length>1)return;sx=t.clientX;sy=t.clientY;dx=0;on=false;swiped=false;t0=performance.now();},{passive:true});
+  let W0=0;
+  fb.addEventListener('touchstart',e=>{const t=e.touches[0];if(!t||e.touches.length>1)return;sx=t.clientX;sy=t.clientY;dx=0;on=false;swiped=false;t0=performance.now();W0=fb.getBoundingClientRect().width;},{passive:true});
   fb.addEventListener('touchmove',e=>{const t=e.touches[0];if(!t)return;const mx=t.clientX-sx,my=t.clientY-sy;
-    if(!on){if(Math.abs(mx)<8||Math.abs(mx)<Math.abs(my))return;on=true;fb.classList.add('drag');}
+    if(!on){if(Math.abs(mx)<8||Math.abs(mx)<Math.abs(my))return;on=true;fb.classList.add('drag');if(!S.fmini)FULL=Math.max(FULL,W0);}
     e.preventDefault();dx=mx;
-    if(!S.fmini)fb.style.transform=`translateX(${dx>0?dx*.9:dx*.15}px)`;else fb.style.transform=`translateX(${dx<0?dx*.25:dx*.1}px)`;},{passive:false});
-  const end=e=>{if(!on)return;on=false;fb.classList.remove('drag');const v=dx/Math.max(1,performance.now()-t0);fb.style.transform='';
-    if(!S.fmini&&(dx>60||(dx>24&&v>.35))){swiped=true;setMini(true);}
-    else if(S.fmini&&(dx<-24)){swiped=true;setMini(false);}
+    const w=S.fmini?clamp(44-dx,44,FULL):clamp(W0-Math.max(0,dx)+Math.min(0,dx)*.15,44,FULL+8);
+    fb.style.maxWidth=w+'px';fb.style.setProperty('--p',clamp(1-(w-44)/Math.max(1,FULL-44),0,1));},{passive:false});
+  const end=e=>{if(!on)return;on=false;const v=dx/Math.max(1,performance.now()-t0);
+    let target=S.fmini;if(!S.fmini&&(dx>60||(dx>24&&v>.35)))target=true;else if(S.fmini&&(dx<-40||(dx<-16&&v<-.35)))target=false;
+    swiped=target!==S.fmini;
+    /* stessa proprietà, stessa curva: dalla larghezza attuale prosegue verso il cerchio o torna aperta */
+    fb.classList.remove('drag');fb.style.removeProperty('--p');fb.style.maxWidth='';setMini(target);
     if(swiped){if(e.cancelable)e.preventDefault();setTimeout(()=>{swiped=false;},350);}};
   fb.addEventListener('touchend',end,{passive:false});fb.addEventListener('touchcancel',end,{passive:false});
   fb.addEventListener('click',e=>{if(swiped){e.stopPropagation();e.preventDefault();swiped=false;}},true);
