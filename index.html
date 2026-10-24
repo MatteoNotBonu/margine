@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='d78b682';</script>
+<script>window.MARGINE_VER='76d2d0c';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -623,7 +623,7 @@ async function addFile(file){
   if(!file)return;if(!/pdf$/i.test(file.type)&&!/\.pdf$/i.test(file.name)){toast('Scegli un file PDF');return;}
   let id=`${file.name}|${file.size}|${file.lastModified}`;
   try{if(!(await DB.get('docs',id))){const twin=(await DB.all('docs')).find(d=>d.name===file.name&&d.size===file.size);if(twin)id=twin.id;}}catch(e){}
-  busy('Copio il PDF nella libreria');
+  DELETED.delete(id);busy('Copio il PDF nella libreria');
   let buf;
   try{buf=await readFileRobust(file);
     let rc=null;try{rc=await reclaimMargine(buf);}catch(e){logErr('ripristino annotazioni Margine',e);}
@@ -698,13 +698,17 @@ async function openDoc(id,fresh){
     if(!meta.thumb)setTimeout(()=>makeDocThumb(gen),1200);
     if(useBak)saveAnnNow();
   }catch(e){unbusy();logErr('apertura PDF',e);toast(e&&e.message?e.message:'Errore durante l’apertura',e&&e.stale?7000:4000);console.error(e);if(!S.doc)showLibrary();}}
-async function makeDocThumb(gen){try{if(gen!==S.gen||!S.doc)return;const pp=await S.doc.getPage(1);const vp=pp.getViewport({scale:120/S.pages[0].w1,rotation:rotOf(0,pp)});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pp.render({canvasContext:x,viewport:vp}).promise;S.meta.thumb=c.toDataURL('image/jpeg',.72);c.width=c.height=0;await DB.put('docs',S.meta);}catch(e){}}
+async function makeDocThumb(gen){try{if(gen!==S.gen||!S.doc||!S.meta)return;const m=S.meta;const pp=await S.doc.getPage(1);const vp=pp.getViewport({scale:120/S.pages[0].w1,rotation:rotOf(0,pp)});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pp.render({canvasContext:x,viewport:vp}).promise;const th=c.toDataURL('image/jpeg',.72);c.width=c.height=0;
+  if(gen!==S.gen||DELETED.has(m.id))return;m.thumb=th;await DB.put('docs',m);}catch(e){}}
 function showReader(){el.lib.hidden=true;el.reader.hidden=false;}
 function showLibrary(){if(S.reloadOnLibrary){location.reload();return;}el.reader.hidden=true;el.lib.hidden=false;renderRecents();}
 async function closeDoc(){finishText();closePop();el.menu.hidden=true;await saveAnnNow();saveMeta(true);
   S.gen++;for(const p of S.pages){if(p.task)try{p.task.cancel();}catch(e){}if(p.canvas){p.canvas.width=p.canvas.height=0;}}
   el.pages.textContent='';el.thumbs.textContent='';for(const u of Object.values(S.thumbUrl))URL.revokeObjectURL(u);S.thumbUrl={};S.thumbVis.clear();
-  try{S.doc&&S.doc.destroy();}catch(e){}S.doc=null;S.pages=[];S.ann={};S.sel=null;closeSearch();showLibrary();}
+  try{S.doc&&S.doc.destroy();}catch(e){}
+  /* dimentico il documento chiuso: nessun salvataggio successivo (app in secondo piano, timer) può riscriverlo */
+  clearTimeout(saveT);clearTimeout(retryT);clearTimeout(metaT);S.meta=null;S.cur=-1;
+  S.doc=null;S.pages=[];S.ann={};S.sel=null;closeSearch();showLibrary();}
 
 /* ---------- pagine, layout, rendering ---------- */
 /* rotazione aggiuntiva per pagina (gradi orari), salvata nei metadati del documento */
@@ -770,7 +774,7 @@ function updInd(){if(!S.pages.length||!S.meta)return;const i=Math.max(0,S.cur),m
   else if(unexported()){txt='Non salvato in File';full=`Modifiche non salvate in File. Ultima modifica alle ${hm(m.editedAt)}, ${m.exportedAt?'ultimo salvataggio in File alle '+hm(m.exportedAt):'mai salvato in File'}.`;cls='warn';}
   else if(m.exportedAt){txt=`Salvato alle ${hm(m.exportedAt)}`;full=`Salvato in File alle ${hm(m.exportedAt)}.`;cls='ok';}else{txt='Nessuna modifica';full='Nessuna modifica da salvare.';}
   S.statusFull=full;const st=$('#expSt');st.textContent=txt;st.className=cls;$('#stBtn').title=full;const dt=$('#fdot');dt.className='fdot '+cls;dt.title=full;$('#kdot').className='kdot '+cls;}
-let metaT;function saveMeta(now){if(!S.meta)return;S.meta.lastPage=Math.max(0,S.cur);S.meta.zoom=S.zoom;clearTimeout(metaT);const f=()=>DB.put('docs',S.meta).catch(()=>{});if(now)f();else metaT=setTimeout(f,800);}
+let metaT;function saveMeta(now){if(!S.meta||!S.doc)return;const m=S.meta;m.lastPage=Math.max(0,S.cur);m.zoom=S.zoom;clearTimeout(metaT);const f=()=>{if(!DELETED.has(m.id))DB.put('docs',m).catch(()=>{});};if(now)f();else metaT=setTimeout(f,800);}
 function scrollToPage(i,f=0){const p=S.pages[i];if(!p)return;el.scroller.scrollTop=p.top-PADT+f*p.h;}
 function setZoom(z,cx,cy){z=clamp(z,ZMIN,ZMAX);if(Math.abs(z-S.zoom)<1e-3||!S.pages.length)return;finishText();
   const sc=el.scroller;if(cx==null){cx=sc.clientWidth/2;cy=sc.clientHeight/2;}
@@ -822,7 +826,8 @@ function hist(dir){finishText();const a=(dir<0?S.undo:S.redo).pop();if(!a)return
   const st=el.scroller.scrollTop,vh=el.scroller.clientHeight;if(p.top+p.h<st||p.top>st+vh)scrollToPage(a.pi);}
 let saveT;function dirty(){clearTimeout(saveT);S.saveState='dirty';updInd();saveT=setTimeout(saveAnnNow,600);}
 let saveWarned=false,retryT;
-async function saveAnnNow(){clearTimeout(saveT);clearTimeout(retryT);if(!S.meta)return;S.saveState='saving';updInd();
+const DELETED=new Set();
+async function saveAnnNow(){clearTimeout(saveT);clearTimeout(retryT);if(!S.meta||!S.doc||DELETED.has(S.meta.id))return;S.saveState='saving';updInd();
   const id=S.meta.id,pages={};for(const[k,v]of Object.entries(S.ann))if(v&&v.length)pages[k]=v;const t=Date.now();
   try{await DB.put('annots',{id,pages,t});S.meta.updated=t;saveMeta(true);S.saveState='saved';saveWarned=false;try{localStorage.removeItem('margine.bak.'+id);}catch(e){}}
   catch(e){S.saveState='error';logErr('salvataggio annotazioni',e);let bak=false;try{localStorage.setItem('margine.bak.'+id,JSON.stringify({t,pages}));bak=true;}catch(_){}
@@ -1158,7 +1163,7 @@ $('#recents').addEventListener('click',async e=>{const o=e.target.closest('.doc-
   const x=e.target.closest('.doc-exp');if(x){const st=x.parentNode.querySelector('.doc-open').dataset.stale;if(st){toast('Questo PDF va riaperto prima: toccalo e scegli di nuovo lo stesso file',5000);return;}exportFromLibrary(x.dataset.id);return;}
   const d=e.target.closest('.doc-del');if(!d)return;
   if(!d.classList.contains('confirm')){d.classList.add('confirm');d.textContent='Rimuovi';setTimeout(()=>{if(d.isConnected){renderRecents();}},4000);return;}
-  const id=d.dataset.id;logErr('rimosso dalla libreria (da te)',id.split('|')[0]);try{localStorage.setItem('margine.lastdel','1');}catch(_){}await Promise.all([DB.del('files',id),DB.del('docs',id),DB.del('annots',id)]).catch(()=>{});renderRecents();toast('Rimosso dalla libreria');});
+  const id=d.dataset.id;DELETED.add(id);logErr('rimosso dalla libreria (da te)',id.split('|')[0]);try{localStorage.setItem('margine.lastdel','1');}catch(_){}await Promise.all([DB.del('files',id),DB.del('docs',id),DB.del('annots',id)]).catch(()=>{});renderRecents();toast('Rimosso dalla libreria');});
 el.lib.addEventListener('dragover',e=>{e.preventDefault();el.lib.classList.add('drag');});
 el.lib.addEventListener('dragleave',()=>el.lib.classList.remove('drag'));
 el.lib.addEventListener('drop',e=>{e.preventDefault();el.lib.classList.remove('drag');const f=e.dataTransfer.files[0];addFile(f);});
@@ -1356,8 +1361,8 @@ document.addEventListener('keydown',e=>{if(!S.doc||S.editing||(e.target.closest&
   if(mod&&k==='z'){e.preventDefault();hist(e.shiftKey?1:-1);}else if(mod&&k==='f'){e.preventDefault();openSearch();}
   else if(mod&&(k==='='||k==='+')){e.preventDefault();setZoom(S.zoom*1.25);}else if(mod&&k==='-'){e.preventDefault();setZoom(S.zoom/1.25);}
   else if((k==='backspace'||k==='delete')&&S.sel){e.preventDefault();delSel();}else if(k==='escape'){clearSel();closePop();}});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&S.meta){saveAnnNow();saveMeta(true);}});
-window.addEventListener('pagehide',()=>{if(S.meta){saveAnnNow();}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&S.meta&&S.doc){saveAnnNow();saveMeta(true);}});
+window.addEventListener('pagehide',()=>{if(S.meta&&S.doc){saveAnnNow();}});
 
 loadCfg();buildSwatches();renderDock();renderRecents();setLock(!!S.lock,true);
 /* barra a schermo intero: swipe verso destra la chiude in un cerchio, tocco sul cerchio la riapre */
