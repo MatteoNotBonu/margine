@@ -839,12 +839,12 @@ function onDown(e){
   if(e.pointerType==='mouse'&&e.button!==0)return;
   closePop();el.menu.hidden=true;
   const isTouch=e.pointerType==='touch';
-  if(isTouch&&(penBusy()||TOUCH.palm||TOUCH.f.size>0||Math.max(e.width||0,e.height||0)>2*PALM.radius))return;
+  if(isTouch&&(penBusy()||TOUCH.palm||TOUCH.f.size>0))return;
   const tgt=PALM.reverted?(document.elementFromPoint(e.clientX,e.clientY)||e.target):e.target;PALM.reverted=false;
   const pe=tgt.closest&&tgt.closest('.page');
   if(!pe){if(S.sel&&!isTouch)clearSel();return;}
   const p=S.pages[+pe.dataset.i];p.rect=pe.getBoundingClientRect();const pt=toUser(p,e.clientX,e.clientY);const tool=S.tool;
-  if(tool==='text'){A={kind:'tap',p,x:e.clientX,y:e.clientY,id:e.pointerId};return;}
+  if(tool==='text'){A={kind:'tap',p,x:e.clientX,y:e.clientY,id:e.pointerId,touch:isTouch};return;}
   if(isTouch)return;
   e.preventDefault();try{el.scroller.setPointerCapture(e.pointerId);}catch(_){}
   const T=TOOLS[tool],cfg=S.cfg[tool];
@@ -891,7 +891,7 @@ function cutStroke(it,x,y,r){const src=it.pts,n=src.length/3,step=Math.max(.25,M
   if(cur.length>=6)pieces.push(cur);
   const press=TOOLS[it.tool]&&TOOLS[it.tool].press;return pieces.map(pc=>Object.assign({},it,{id:uid(),pts:simplify(pc,press?.04:.08)}));}
 function onUp(e){if(!A||e.pointerId!==A.id)return;const a=A;A=null;const p=a.p;
-  if(a.kind==='tap'){if(e.type==='pointercancel'||TOUCH.palm||penBusy())return;if(Math.hypot(e.clientX-a.x,e.clientY-a.y)>10)return;p.rect=p.el.getBoundingClientRect();
+  if(a.kind==='tap'){if(e.type==='pointercancel'||(a.touch&&(TOUCH.palm||PALM.penDown)))return;if(Math.hypot(e.clientX-a.x,e.clientY-a.y)>10)return;p.rect=p.el.getBoundingClientRect();
     const pt=toUser(p,e.clientX,e.clientY);const hit=hitText(p,pt[0],pt[1]);
     if(hit)startText(p,hit);else{const sz=TOOLS.text.widths[S.cfg.text.wi];startText(p,null,toUser(p,e.clientX-2,e.clientY-sz*S.scale*.62));}return;}
   if(a.kind==='draw'&&!a.snap&&a.raw){const n=a.pts.length;if(Math.hypot(a.raw[0]-a.pts[n-3],a.raw[1]-a.pts[n-2])>.05)a.pts.push(a.raw[0],a.raw[1],a.raw[2]);}
