@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
+<script>window.MARGINE_VER='833373b';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -211,6 +212,16 @@ svg{display:block}
 .fbar{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));z-index:22;display:flex;align-items:center;gap:2px;background:var(--chrome);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-radius:999px;padding:3px 3px 3px 12px;box-shadow:var(--shadow)}
 .fbar span{font-size:12px;color:var(--fg2);font-variant-numeric:tabular-nums;margin-right:4px}
 .reader:not(.focus) .fbar{display:none}
+.fbar{overflow:hidden;max-width:560px;height:44px;touch-action:none;transition:max-width .46s cubic-bezier(.3,1.15,.4,1),padding .3s ease,transform .32s cubic-bezier(.2,1.2,.4,1)}
+.fbar>*{flex-shrink:0}
+.fbar>*:not(.fknob){transition:opacity .22s ease .1s}
+.fbar.drag{transition:none}
+.fbar.mini{max-width:44px;padding:0;transition:max-width .34s cubic-bezier(.5,0,.3,1),padding .3s ease,transform .32s cubic-bezier(.2,1.2,.4,1)}
+.fbar.mini>*:not(.fknob){opacity:0;pointer-events:none;transition-delay:0s;transition-duration:.12s}
+.fknob{position:absolute;right:0;top:0;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--fg);opacity:0;transform:scale(.5) rotate(-90deg);pointer-events:none;transition:opacity .15s ease,transform .2s ease}
+.fbar.mini .fknob{opacity:1;transform:none;pointer-events:auto;transition:opacity .2s ease .18s,transform .45s cubic-bezier(.2,1.6,.4,1) .14s}
+.fknob .kdot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--fg2);opacity:.6}
+.fknob .kdot.warn{background:var(--warn);opacity:1}.fknob .kdot.ok{background:var(--ok);opacity:1}.fknob .kdot.err{background:var(--danger);opacity:1}
 .toast{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom,0px));transform:translate(-50%,12px);opacity:0;z-index:70;background:#1c1c1e;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:calc(100% - 32px);text-align:center;transition:opacity .2s,transform .2s;pointer-events:none}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .seg{display:flex;background:rgba(255,255,255,.1);border-radius:12px;padding:3px;gap:3px}
@@ -271,6 +282,7 @@ svg{display:block}
     </section>
     <div class="diag" id="diag" hidden></div>
     <button class="linkbtn" id="bDiag">Stato archivio</button>
+    <p class="note" id="ver" style="opacity:.7"></p>
     <p class="note">I PDF e le annotazioni restano in questo browser, su questo iPad. Usa Salva in File per avere una copia con le annotazioni dentro: restano modificabili anche in Anteprima.</p>
   </div>
 </main>
@@ -298,7 +310,7 @@ svg{display:block}
       <button class="ib" id="bMore" aria-label="Altro"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5.5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="18.5" cy="12" r="1.8"/></svg></button>
     </div>
   </header>
-  <div class="fbar" id="fbar"><span class="fdot" id="fdot"></span><span id="pageInd2"></span>
+  <div class="fbar" id="fbar"><button class="fknob" id="fknob" aria-label="Mostra i comandi" title="Mostra i comandi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6 8.5 12l6 6"/></svg><span class="kdot" id="kdot"></span></button><span class="fdot" id="fdot"></span><span id="pageInd2"></span>
     <button class="ib" id="bLock2" aria-label="Blocca pagina" title="Blocca pagina"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 7.6-1.8"/></svg></button>
     <button class="ib" id="bHome2" aria-label="Torna alla libreria"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h4.5v-5h3v5H18v-9"/></svg></button>
     <button class="ib" id="bSave2" aria-label="Salva in File" title="Salva in File"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/><path d="M8 4v5h7V4"/><rect x="8" y="13" width="8" height="5" rx="1"/></svg></button>
@@ -420,8 +432,8 @@ const DB=(()=>{let p=null;
 
 function loadCfg(){let saved={};try{saved=JSON.parse(localStorage.getItem('margine.cfg')||'{}');}catch(e){}
   for(const t of ORDER){if(TOOLS[t].def)S.cfg[t]=Object.assign({},TOOLS[t].def,(saved.cfg||{})[t]||{});}
-  if(saved.tool&&TOOLS[saved.tool]&&saved.tool!=='line')S.tool=saved.tool; if(saved.lastInk&&TOOLS[saved.lastInk]&&saved.lastInk!=='line')S.lastInk=saved.lastInk; if(saved.custom)S.custom=saved.custom;if(saved.lock)S.lock=true;if(saved.focus){S.focus=true;el.reader.classList.add('focus');}}
-function saveCfg(){try{localStorage.setItem('margine.cfg',JSON.stringify({cfg:S.cfg,tool:S.tool,lastInk:S.lastInk,custom:S.custom,focus:!!S.focus,lock:!!S.lock}));}catch(e){}}
+  if(saved.tool&&TOOLS[saved.tool]&&saved.tool!=='line')S.tool=saved.tool; if(saved.lastInk&&TOOLS[saved.lastInk]&&saved.lastInk!=='line')S.lastInk=saved.lastInk; if(saved.custom)S.custom=saved.custom;if(saved.lock)S.lock=true;if(saved.fmini)S.fmini=true;if(saved.focus){S.focus=true;el.reader.classList.add('focus');}}
+function saveCfg(){try{localStorage.setItem('margine.cfg',JSON.stringify({cfg:S.cfg,tool:S.tool,lastInk:S.lastInk,custom:S.custom,focus:!!S.focus,lock:!!S.lock,fmini:!!S.fmini}));}catch(e){}}
 
 /* ---------- PDF.js worker ---------- */
 async function setupWorker(){
@@ -649,7 +661,7 @@ async function openDoc(id,fresh){
   }catch(e){unbusy();logErr('apertura PDF',e);toast(e&&e.message?e.message:'Errore durante l’apertura',e&&e.stale?7000:4000);console.error(e);if(!S.doc)showLibrary();}}
 async function makeDocThumb(gen){try{if(gen!==S.gen||!S.doc)return;const pp=await S.doc.getPage(1);const vp=pp.getViewport({scale:120/S.pages[0].w1,rotation:rotOf(0,pp)});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pp.render({canvasContext:x,viewport:vp}).promise;S.meta.thumb=c.toDataURL('image/jpeg',.72);c.width=c.height=0;await DB.put('docs',S.meta);}catch(e){}}
 function showReader(){el.lib.hidden=true;el.reader.hidden=false;}
-function showLibrary(){el.reader.hidden=true;el.lib.hidden=false;renderRecents();}
+function showLibrary(){if(S.reloadOnLibrary){location.reload();return;}el.reader.hidden=true;el.lib.hidden=false;renderRecents();}
 async function closeDoc(){finishText();closePop();el.menu.hidden=true;await saveAnnNow();saveMeta(true);
   S.gen++;for(const p of S.pages){if(p.task)try{p.task.cancel();}catch(e){}if(p.canvas){p.canvas.width=p.canvas.height=0;}}
   el.pages.textContent='';el.thumbs.textContent='';for(const u of Object.values(S.thumbUrl))URL.revokeObjectURL(u);S.thumbUrl={};S.thumbVis.clear();
@@ -717,7 +729,7 @@ function updInd(){if(!S.pages.length||!S.meta)return;const i=Math.max(0,S.cur),m
   let txt,full,cls='';if(S.saveState==='error'){txt=full='Errore di salvataggio sull’iPad';cls='err';}
   else if(unexported()){txt='Non salvato in File';full=`Modifiche non salvate in File. Ultima modifica alle ${hm(m.editedAt)}, ${m.exportedAt?'ultimo salvataggio in File alle '+hm(m.exportedAt):'mai salvato in File'}.`;cls='warn';}
   else if(m.exportedAt){txt=`Salvato alle ${hm(m.exportedAt)}`;full=`Salvato in File alle ${hm(m.exportedAt)}.`;cls='ok';}else{txt='Nessuna modifica';full='Nessuna modifica da salvare.';}
-  S.statusFull=full;const st=$('#expSt');st.textContent=txt;st.className=cls;$('#stBtn').title=full;const dt=$('#fdot');dt.className='fdot '+cls;dt.title=full;}
+  S.statusFull=full;const st=$('#expSt');st.textContent=txt;st.className=cls;$('#stBtn').title=full;const dt=$('#fdot');dt.className='fdot '+cls;dt.title=full;$('#kdot').className='kdot '+cls;}
 let metaT;function saveMeta(now){if(!S.meta)return;S.meta.lastPage=Math.max(0,S.cur);S.meta.zoom=S.zoom;clearTimeout(metaT);const f=()=>DB.put('docs',S.meta).catch(()=>{});if(now)f();else metaT=setTimeout(f,800);}
 function scrollToPage(i,f=0){const p=S.pages[i];if(!p)return;el.scroller.scrollTop=p.top-PADT+f*p.h;}
 function setZoom(z,cx,cy){z=clamp(z,ZMIN,ZMAX);if(Math.abs(z-S.zoom)<1e-3||!S.pages.length)return;finishText();
@@ -1307,9 +1319,32 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('pagehide',()=>{if(S.meta){saveAnnNow();}});
 
 loadCfg();buildSwatches();renderDock();renderRecents();setLock(!!S.lock,true);
+/* barra a schermo intero: swipe verso destra la chiude in un cerchio, tocco sul cerchio la riapre */
+(()=>{const fb=$('#fbar');let sx=0,sy=0,dx=0,on=false,swiped=false,t0=0;
+  const setMini=m=>{S.fmini=!!m;fb.classList.toggle('mini',S.fmini);saveCfg();};
+  setMini(S.fmini);
+  fb.addEventListener('touchstart',e=>{const t=e.touches[0];if(!t||e.touches.length>1)return;sx=t.clientX;sy=t.clientY;dx=0;on=false;swiped=false;t0=performance.now();},{passive:true});
+  fb.addEventListener('touchmove',e=>{const t=e.touches[0];if(!t)return;const mx=t.clientX-sx,my=t.clientY-sy;
+    if(!on){if(Math.abs(mx)<8||Math.abs(mx)<Math.abs(my))return;on=true;fb.classList.add('drag');}
+    e.preventDefault();dx=mx;
+    if(!S.fmini)fb.style.transform=`translateX(${dx>0?dx*.9:dx*.15}px)`;else fb.style.transform=`translateX(${dx<0?dx*.25:dx*.1}px)`;},{passive:false});
+  const end=e=>{if(!on)return;on=false;fb.classList.remove('drag');const v=dx/Math.max(1,performance.now()-t0);fb.style.transform='';
+    if(!S.fmini&&(dx>60||(dx>24&&v>.35))){swiped=true;setMini(true);}
+    else if(S.fmini&&(dx<-24)){swiped=true;setMini(false);}
+    if(swiped){if(e.cancelable)e.preventDefault();setTimeout(()=>{swiped=false;},350);}};
+  fb.addEventListener('touchend',end,{passive:false});fb.addEventListener('touchcancel',end,{passive:false});
+  fb.addEventListener('click',e=>{if(swiped){e.stopPropagation();e.preventDefault();swiped=false;}},true);
+  $('#fknob').onclick=()=>setMini(false);})();
+/* versione e aggiornamenti dell'app installata */
+$('#ver').textContent=window.MARGINE_VER?`Versione ${window.MARGINE_VER}`:'';
 /* nell'app Claude (WebView senza "Safari/" nello user agent) l'archivio della pagina non sopravvive alla chiusura dell'app */
 const IN_APP=window.top!==window&&/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&!/Safari\//.test(navigator.userAgent)&&navigator.maxTouchPoints>0;
-if(STANDALONE&&'serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(e=>logErr('offline',e));
+if(STANDALONE&&'serviceWorker' in navigator&&location.protocol==='https:'){
+  const hadCtl=!!navigator.serviceWorker.controller;let reloadPending=false;
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{reg.update().catch(()=>{});
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reg.update().catch(()=>{});});}).catch(e=>logErr('offline',e));
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!hadCtl||reloadPending)return;reloadPending=true;
+    if(el.reader.hidden)location.reload();else{S.reloadOnLibrary=true;toast('Nuova versione di Margine pronta: si applica quando torni alla Libreria',5000);}});}
 $('#appwarn').hidden=!IN_APP;
 if(!window.pdfjsLib)toast('Non riesco a caricare il motore PDF. Controlla la connessione e ricarica la pagina.',6000);
 })();
