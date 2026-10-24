@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='c5d7a18';</script>
+<script>window.MARGINE_VER='423a108';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -1267,12 +1267,13 @@ function fingerStart(e){const now=performance.now();let stylus=false;
   for(const t of e.changedTouches){if(t.touchType==='stylus'&&S.markup){stylus=true;continue;}
     const r=tRadius(t);RADII.push(Math.round(r));if(RADII.length>12)RADII.shift();
     if(!TOUCH.f.size)TOUCH.gs={sx:sc.scrollLeft,sy:sc.scrollTop,t:now};
-    TOUCH.f.set(t.identifier,{x:t.clientX,y:t.clientY,x0:t.clientX,y0:t.clientY,palm:penBusy()||r>PALM.radius,spent:false});}
+    /* contatto largo (palmo o pollice): non scorre da solo, ma può fare il pizzico insieme a un altro dito */
+    TOUCH.f.set(t.identifier,{x:t.clientX,y:t.clientY,x0:t.clientX,y0:t.clientY,palm:penBusy(),big:r>PALM.radius,spent:false});}
   if(stylus)penLanded();
   if(validFingers().length>=3)cancelFingers(true);
   if(S.lock||TOUCH.palm)return;
   stopMom();const v=validFingers();
-  if(v.length===1&&!TOUCH.pan&&!TOUCH.pinch){const[id,f]=v[0];TOUCH.pan={id,on:false,lx:f.x,ly:f.y,lt:now,vx:0,vy:0,px:sc.scrollLeft,py:sc.scrollTop};}
+  if(v.length===1&&!TOUCH.pan&&!TOUCH.pinch){const[id,f]=v[0];if(!f.big)TOUCH.pan={id,on:false,lx:f.x,ly:f.y,lt:now,vx:0,vy:0,px:sc.scrollLeft,py:sc.scrollTop};}
   else if(v.length===2&&!TOUCH.pinch){const[[ia,a],[ib,b]]=v;TOUCH.pan=null;TOUCH.pinch={ia,ib,a0:{x:a.x,y:a.y},b0:{x:b.x,y:b.y},on:false};}}
 function fingerMove(e){const now=performance.now();let stylus=false;
   for(const t of e.changedTouches){if(t.touchType==='stylus'&&S.markup){stylus=true;continue;}const f=TOUCH.f.get(t.identifier);if(f){f.x=t.clientX;f.y=t.clientY;}}
