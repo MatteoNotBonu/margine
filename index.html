@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='19f2b23';</script>
+<script>window.MARGINE_VER='d78b682';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -57,7 +57,8 @@ svg{display:block}
 .lib-sub{margin:0;color:var(--fg2);font-size:16px;line-height:1.5;max-width:58ch}
 .primary{background:var(--accent);color:#fff;font-weight:600;font-size:16px;padding:11px 20px;border-radius:999px;display:inline-flex;align-items:center;gap:8px}
 .primary:active{filter:brightness(.92)}
-.sec-h{margin:0 0 10px;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg2)}
+.sec-h{margin:0 0 10px;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg2);display:flex;align-items:center;gap:7px}
+.sec-h svg{flex:none}
 .docs{background:var(--card);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
 .doc{display:flex;align-items:center;gap:8px;padding-right:10px}
 .doc+.doc{border-top:1px solid var(--line)}
@@ -308,7 +309,7 @@ svg{display:block}
     <p class="lib-sub">Annota i PDF con Apple Pencil anche quando sono pesanti. Le pagine vengono disegnate solo quando le guardi, le tue annotazioni restano vettoriali e si salvano da sole.</p>
     <div class="appwarn" id="appwarn" hidden><b>Stai usando Margine nell’app Claude</b>Quando chiudi l’app, i PDF e le annotazioni salvati qui vengono cancellati. Per non perdere nulla apri Margine da Safari, oppure prima di chiudere tocca sempre Salva in File e la volta dopo riapri quel file.</div>
     <section>
-      <h2 class="sec-h">Recenti</h2>
+      <h2 class="sec-h"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>Recenti</h2>
       <div class="docs" id="recents" hidden></div>
       <div class="empty" id="empty"><strong>Nessun PDF ancora</strong>Tocca Apri PDF e scegli il file da File, iCloud Drive o Download.</div>
     </section>
