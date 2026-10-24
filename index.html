@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='423a108';</script>
+<script>window.MARGINE_VER='19f2b23';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -250,6 +250,12 @@ svg{display:block}
 .fknob .kdot.warn{background:var(--warn);opacity:1}.fknob .kdot.ok{background:var(--ok);opacity:1}.fknob .kdot.err{background:var(--danger);opacity:1}
 .toast{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom,0px));transform:translate(-50%,12px);opacity:0;z-index:70;background:#1c1c1e;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:calc(100% - 32px);text-align:center;transition:opacity .2s,transform .2s;pointer-events:none}
 .toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.has-ic{display:flex;align-items:center;gap:10px;text-align:left}
+.toast.has-ic svg{flex:none}
+.toast .shk-close{animation:shkClose .45s cubic-bezier(.3,1.6,.5,1) both .05s}
+.toast .shk-open{animation:shkOpen .45s cubic-bezier(.3,1.6,.5,1) both .05s}
+@keyframes shkClose{from{transform:translateY(-3.5px)}to{transform:none}}
+@keyframes shkOpen{from{transform:translateY(3px)}to{transform:none}}
 .seg{display:flex;background:rgba(255,255,255,.1);border-radius:12px;padding:3px;gap:3px}
 .seg button{flex:1;padding:9px 6px;border-radius:9px;font-size:14px;font-weight:600;color:rgba(255,255,255,.75)}
 .seg button.on{background:rgba(255,255,255,.22);color:#fff}
@@ -432,7 +438,12 @@ function invert(m){const[a,b,c,d,e,f]=m,det=a*d-b*c;return[d/det,-b/det,-c/det,a
 function apply(m,x,y){return[m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]];}
 function hex2rgb(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return[(n>>16&255)/255,(n>>8&255)/255,(n&255)/255].map(v=>Math.round(v*1000)/1000);}
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Impossibile caricare '+src));document.head.append(s);});}
-let toastT;function toast(m,ms=2600){el.toast.textContent=m;el.toast.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.toast.classList.remove('show'),ms);}
+const TOAST_IC={
+  lock:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path class="shk-close" d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>',
+  unlock:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path class="shk-open" d="M8 10.5V7.5a4 4 0 0 1 7.6-1.8"/></svg>'};
+let toastT;function toast(m,ms=2600,ic){const t=el.toast;t.classList.remove('show');void t.offsetWidth;
+  if(ic&&TOAST_IC[ic]){t.innerHTML=TOAST_IC[ic]+'<span></span>';t.lastChild.textContent=m;t.classList.add('has-ic');}else{t.textContent=m;t.classList.remove('has-ic');}
+  t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.toast.classList.remove('show'),ms);}
 function busy(msg,frac){el.busy.hidden=false;$('#busyMsg').textContent=msg;$('#busyBarW').style.visibility=frac==null?'hidden':'visible';if(frac!=null)$('#busyBar').style.width=Math.round(frac*100)+'%';}
 function unbusy(){el.busy.hidden=true;}
 function fold(s){let r='';for(let i=0;i<s.length;i++){const ch=s[i];const d=ch.normalize('NFD')[0]||ch;r+=(d.toLowerCase()[0]||' ');}return r;}
@@ -1262,7 +1273,7 @@ function cancelFingers(cluster){if(cluster)TOUCH.palm=true;for(const f of TOUCH.
     if(Math.hypot(dx,dy)<90){sc.scrollLeft=TOUCH.gs.sx;sc.scrollTop=TOUCH.gs.sy;PALM.reverted=true;}}
   TOUCH.pan=TOUCH.pinch=null;}
 function penLanded(){PALM.penDown=true;PALM.penT=performance.now();stopMom();if(RU.g)RU.g=null;if(TOUCH.f.size)cancelFingers(false);}
-function lockHint(){const n=performance.now();if(n-PALM.hintT<8000)return;PALM.hintT=n;toast('Pagina bloccata: scorri con la barra a destra o sblocca con il lucchetto',3500);}
+function lockHint(){const n=performance.now();if(n-PALM.hintT<8000)return;PALM.hintT=n;toast('Pagina bloccata: scorri con la barra a destra o sblocca con il lucchetto',3500,'lock');}
 function fingerStart(e){const now=performance.now();let stylus=false;
   for(const t of e.changedTouches){if(t.touchType==='stylus'&&S.markup){stylus=true;continue;}
     const r=tRadius(t);RADII.push(Math.round(r));if(RADII.length>12)RADII.shift();
@@ -1331,7 +1342,7 @@ LB.el.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
 function setLock(on,quiet){S.lock=!!on;saveCfg();
   for(const b of[$('#bLock'),$('#bLock2')]){b.innerHTML=S.lock?LOCK_ON:LOCK_OFF;b.classList.toggle('on',S.lock);const l=S.lock?'Sblocca pagina':'Blocca pagina';b.setAttribute('aria-label',l);b.title=l;}
   LB.el.hidden=!S.lock;stopMom();if(TOUCH.pinch&&TOUCH.pinch.on)el.pages.style.transform='';TOUCH.pan=TOUCH.pinch=null;requestAnimationFrame(lbUpdate);
-  if(!quiet)toast(S.lock?'Pagina bloccata: le dita non spostano né ingrandiscono. Scorri con la barra a destra.':'Pagina sbloccata',3200);}
+  if(!quiet)toast(S.lock?'Pagina bloccata: le dita non spostano né ingrandiscono. Scorri con la barra a destra.':'Pagina sbloccata',3200,S.lock?'lock':'unlock');}
 $('#bLock').onclick=()=>setLock(!S.lock);$('#bLock2').onclick=()=>setLock(!S.lock);
 let scrollRaf=0;sc.addEventListener('scroll',()=>{if(scrollRaf)return;scrollRaf=requestAnimationFrame(()=>{scrollRaf=0;updateNear();updateCur();lbUpdate();});},{passive:true});
 sc.addEventListener('wheel',e=>{if(!e.ctrlKey)return;e.preventDefault();const r=sc.getBoundingClientRect();setZoom(S.zoom*Math.exp(-e.deltaY*.01),e.clientX-r.left,e.clientY-r.top);},{passive:false});
