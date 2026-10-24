@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='176709c';</script>
+<script>window.MARGINE_VER='c5d7a18';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -28,13 +28,13 @@
   --serif:ui-serif,"New York","Iowan Old Style",Georgia,serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --desk:#17171a; --bg:#101012; --card:#1c1c1f; --fg:#f2f2f7; --fg2:#9b9ba3; --line:rgba(235,235,245,.14);
+  --desk:#26272b; --bg:#101012; --card:#1c1c1f; --fg:#f2f2f7; --fg2:#9b9ba3; --line:rgba(235,235,245,.14);
   --chrome:rgba(30,30,33,.92); --chip:rgba(118,118,128,.26); --accent:#3d9bff; --accent-soft:rgba(61,155,255,.18);
   --dock:rgba(46,46,50,.97); --dock-2:rgba(255,255,255,.12); --warn:#ffb340; --ok:#30d158; --inst:#4c4c51; --danger:#ff6961;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.5); --page-shadow:0 1px 3px rgba(0,0,0,.5),0 6px 20px rgba(0,0,0,.4);
   color-scheme:dark}}
 :root[data-theme="dark"]{
-  --desk:#17171a; --bg:#101012; --card:#1c1c1f; --fg:#f2f2f7; --fg2:#9b9ba3; --line:rgba(235,235,245,.14);
+  --desk:#26272b; --bg:#101012; --card:#1c1c1f; --fg:#f2f2f7; --fg2:#9b9ba3; --line:rgba(235,235,245,.14);
   --chrome:rgba(30,30,33,.92); --chip:rgba(118,118,128,.26); --accent:#3d9bff; --accent-soft:rgba(61,155,255,.18);
   --dock:rgba(46,46,50,.97); --dock-2:rgba(255,255,255,.12); --warn:#ffb340; --ok:#30d158; --inst:#4c4c51; --danger:#ff6961;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.5); --page-shadow:0 1px 3px rgba(0,0,0,.5),0 6px 20px rgba(0,0,0,.4);
@@ -81,7 +81,7 @@ svg{display:block}
 /* ---------- Lettore ---------- */
 .reader{height:100%;display:grid;grid-template-rows:auto 1fr;grid-template-columns:var(--sidew,0px) minmax(0,1fr);position:relative}
 .reader.side{--sidew:172px}
-.top{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--chrome);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-bottom:1px solid var(--line);z-index:20}
+.top{grid-column:1/-1;display:grid;grid-template-columns:minmax(max-content,1fr) auto minmax(max-content,1fr);align-items:center;gap:10px;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--chrome);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-bottom:1px solid var(--line);z-index:20}
 .pill{display:flex;align-items:center;gap:2px;background:var(--chip);border-radius:999px;padding:3px}
 .ib{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--fg)}
 .ib:active{background:var(--chip)}
@@ -114,7 +114,7 @@ svg{display:block}
 .thumb.cur .tbox{box-shadow:0 0 0 3px var(--accent)}
 .thumb.cur .tn{background:var(--accent);color:#fff}
 .scroller{grid-row:2;grid-column:2;overflow:auto;background:var(--desk);touch-action:none;overscroll-behavior:contain;position:relative}
-.pages{display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 16px 132px;min-width:100%;transform-origin:0 0;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.pages{display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px var(--padx,16px) 132px;min-width:100%;transform-origin:0 0;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .pages *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none}
 .pages .tedit{-webkit-user-select:text;user-select:text}
 .page{position:relative;flex:none;background:#fff;box-shadow:var(--page-shadow);contain:layout paint}
@@ -141,6 +141,30 @@ svg{display:block}
 
 /* Barra strumenti flottante */
 .dock{position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:calc(100% - 24px);z-index:30;filter:drop-shadow(0 10px 24px rgba(0,0,0,.28));transition:transform .5s cubic-bezier(.18,1.25,.32,1),opacity .22s ease,visibility 0s}
+.menu .m-narrow{display:none}
+/* schermo diviso e finestre strette */
+@media (max-width:700px){
+  #bFocus,#bSearch{display:none}.menu .m-narrow{display:flex}
+  .reader.side{--sidew:132px}.thumb{width:110px}.tbox{width:90px}
+  .dock{zoom:.88}
+}
+@media (max-width:740px){
+  .reader.focus .top{padding-top:calc(62px + env(safe-area-inset-top,0px))}
+  .reader.focus .top .tc{grid-column:1/-1;justify-self:end}
+  .reader.focus #lockbar{margin-top:118px}
+  .reader.focus #searchbar{top:calc(116px + env(safe-area-inset-top,0px))}
+}
+@media (max-width:640px){.fbar>span:not(.fdot){display:none}}
+@media (max-width:480px){
+  .top{gap:6px;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
+  .top .ib{width:34px;height:34px}
+  .dock{zoom:.76}
+  .reader.side{--sidew:104px}.thumb{width:92px}.tbox{width:72px}
+}
+@media (max-width:380px){
+  .top{grid-template-columns:1fr auto;row-gap:6px}
+  .top .tc{grid-column:1/-1;grid-row:2;justify-self:center}
+}
 .dock.off{transform:translate(-50%,calc(100% + 40px)) scale(.94);opacity:0;visibility:hidden;pointer-events:none;transition:transform .26s cubic-bezier(.5,0,.75,0),opacity .2s ease .06s,visibility 0s .26s}
 .dock.enter .tool svg{animation:toolUp .55s cubic-bezier(.2,1.35,.4,1) both;animation-delay:calc(var(--i)*38ms + 90ms)}
 .dock.enter .dot{animation:dotIn .42s cubic-bezier(.2,1.5,.4,1) both;animation-delay:calc(var(--j)*35ms + 220ms)}
@@ -212,12 +236,12 @@ svg{display:block}
 .fbar{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));z-index:22;display:flex;align-items:center;gap:2px;background:var(--chrome);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-radius:999px;padding:3px 3px 3px 12px;box-shadow:var(--shadow)}
 .fbar span{font-size:12px;color:var(--fg2);font-variant-numeric:tabular-nums;margin-right:4px}
 .reader:not(.focus) .fbar{display:none}
-.fbar{overflow:hidden;max-width:560px;height:44px;touch-action:none;transition:max-width .42s cubic-bezier(.22,1,.36,1),padding-left .42s cubic-bezier(.22,1,.36,1)}
+.fbar{overflow:hidden;max-width:560px;height:44px;touch-action:none;transition:max-width .42s cubic-bezier(.22,1,.36,1),padding .42s cubic-bezier(.22,1,.36,1)}
 .fbar>*{flex-shrink:0}
 .fbar>*:not(.fknob){transition:opacity .22s ease .1s}
 .fbar.drag{transition:none}
 .fbar.drag>*:not(.fknob){opacity:calc(1 - var(--p,0)*1.6);transition:none}
-.fbar.drag .fknob{opacity:calc(var(--p,0)*2 - 1);transform:none;transition:none}
+.fbar.drag .fknob{opacity:calc(var(--p,0)*2 - 1);transform:none;transition:none;pointer-events:none}
 .fbar.mini{max-width:44px;padding:0;transition:max-width .32s cubic-bezier(.22,1,.36,1),padding .32s cubic-bezier(.22,1,.36,1)}
 .fbar.mini>*:not(.fknob){opacity:0;pointer-events:none;transition-delay:0s;transition-duration:.12s}
 .fknob{position:absolute;right:0;top:0;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--fg);opacity:0;transform:scale(.5) rotate(-90deg);pointer-events:none;transition:opacity .15s ease,transform .2s ease}
@@ -350,6 +374,7 @@ svg{display:block}
     <button data-act="zin">Ingrandisci</button>
     <button data-act="zout">Riduci</button>
     <button data-act="focus">Schermo intero</button>
+    <button data-act="search" class="m-narrow">Cerca</button>
     <button data-act="fit">Adatta alla larghezza <span class="zl" id="zl">100%</span></button>
     <hr>
     <button data-act="close">Chiudi documento</button>
@@ -686,10 +711,11 @@ async function rotatePage(i){finishText();clearSel();closePop();const p=S.pages[
 function makePage(p){const e=document.createElement('div');e.className='page';e.dataset.i=p.i;const vb=`0 0 ${p.w1} ${p.h1}`,m=`matrix(${p.vt.join(' ')})`;
   e.innerHTML=`<span class="pno">${p.i+1}</span><svg class="img" viewBox="${vb}" preserveAspectRatio="none"><g transform="${m}"></g></svg><svg class="hl" viewBox="${vb}" preserveAspectRatio="none"><g transform="${m}"><g class="gs"></g><g class="gh"></g></g></svg><svg class="ink" viewBox="${vb}" preserveAspectRatio="none"><g transform="${m}"><g class="gg"></g><g class="gi"></g><g class="gsel"></g></g></svg><svg class="lv" viewBox="${vb}" preserveAspectRatio="none"><g transform="${m}"></g></svg>`;
   p.el=e;p.gS=e.querySelector('.gs');p.gH=e.querySelector('.gh');p.gI=e.querySelector('.gi');p.gSel=e.querySelector('.gsel');p.gG=e.querySelector('.gg');p.gImg=e.querySelector('svg.img').firstChild;p.lv=e.querySelector('svg.lv');p.gL=p.lv.firstChild;p.nodes=new Map();}
-function layout(){if(!S.pages.length)return;const sc=el.scroller;const avail=Math.max(160,sc.clientWidth-PADX*2);
+function padX(){return el.scroller.clientWidth<600?6:PADX;}
+function layout(){if(!S.pages.length)return;const sc=el.scroller,px=padX();el.pages.style.setProperty('--padx',px+'px');const avail=Math.max(160,sc.clientWidth-px*2);
   S.scale=avail/S.maxW1*S.zoom;let y=PADT,mw=0;
   for(const p of S.pages){p.w=p.w1*S.scale;p.h=p.h1*S.scale;p.top=y;y+=p.h+14;p.el.style.width=p.w+'px';p.el.style.height=p.h+'px';if(p.w>mw)mw=p.w;}
-  el.pages.style.width=(mw+PADX*2)+'px';if(S.sel)drawSel();$('#zl').textContent=Math.round(S.zoom*100)+'%';}
+  el.pages.style.width=(mw+px*2)+'px';if(S.sel)drawSel();$('#zl').textContent=Math.round(S.zoom*100)+'%';}
 function findPage(y){const P=S.pages;let a=0,b=P.length-1;while(a<b){const m=(a+b)>>1;if(P[m].top+P[m].h<y)a=m+1;else b=m;}return a;}
 function pageLeft(p){return(el.pages.offsetWidth-p.w)/2;}
 function updateNear(){if(!S.pages.length)return;const st=el.scroller.scrollTop,vh=el.scroller.clientHeight,lo=st-vh*.6,hi=st+vh*1.6,near=new Set();
@@ -1170,7 +1196,7 @@ $('#bSearch').onclick=()=>el.sbar.hidden?openSearch():closeSearch();
 $('#bMore').onclick=e=>{e.stopPropagation();if(!el.menu.hidden){el.menu.hidden=true;return;}el.menu.hidden=false;const r=$('#bMore').getBoundingClientRect();
   el.menu.style.top=(r.bottom+8)+'px';el.menu.style.left=clamp(r.right-el.menu.offsetWidth,8,innerWidth-el.menu.offsetWidth-8)+'px';};
 el.menu.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.act;el.menu.hidden=true;
-  if(a==='zin')setZoom(S.zoom*1.25);else if(a==='zout')setZoom(S.zoom/1.25);else if(a==='fit')setZoom(1);else if(a==='focus')setFocus(true);else if(a==='close')requestClose();});
+  if(a==='zin')setZoom(S.zoom*1.25);else if(a==='zout')setZoom(S.zoom/1.25);else if(a==='fit')setZoom(1);else if(a==='focus')setFocus(true);else if(a==='search')openSearch();else if(a==='close')requestClose();});
 function setFocus(on){el.reader.classList.toggle('focus',on);S.focus=on;saveCfg();el.menu.hidden=true;
   try{const d=document,de=d.documentElement;
     if(on&&!(d.fullscreenElement||d.webkitFullscreenElement)){const r=(de.requestFullscreen||de.webkitRequestFullscreen);if(r){const pr=r.call(de);if(pr&&pr.catch)pr.catch(()=>{});}}
@@ -1328,9 +1354,11 @@ loadCfg();buildSwatches();renderDock();renderRecents();setLock(!!S.lock,true);
   let W0=0;
   fb.addEventListener('touchstart',e=>{const t=e.touches[0];if(!t||e.touches.length>1)return;sx=t.clientX;sy=t.clientY;dx=0;on=false;swiped=false;t0=performance.now();W0=fb.getBoundingClientRect().width;},{passive:true});
   fb.addEventListener('touchmove',e=>{const t=e.touches[0];if(!t)return;const mx=t.clientX-sx,my=t.clientY-sy;
-    if(!on){if(Math.abs(mx)<8||Math.abs(mx)<Math.abs(my))return;on=true;fb.classList.add('drag');if(!S.fmini)FULL=Math.max(FULL,W0);}
+    if(!on){if(Math.abs(mx)<8||Math.abs(mx)<Math.abs(my))return;on=true;fb.classList.add('drag');
+      /* dal cerchio: tolgo subito la forma "cerchio" (stessa larghezza 44px), così margini e comandi seguono il dito senza scatti */
+      if(S.fmini){fb.style.maxWidth='44px';fb.style.setProperty('--p','1');fb.classList.remove('mini');}else FULL=Math.max(FULL,W0);}
     e.preventDefault();dx=mx;
-    const w=S.fmini?clamp(44-dx,44,FULL):clamp(W0-Math.max(0,dx)+Math.min(0,dx)*.15,44,FULL+8);
+    const w=S.fmini?clamp(44-dx+Math.min(0,-dx)*0,44,FULL+8):clamp(W0-Math.max(0,dx)+Math.min(0,dx)*.15,44,FULL+8);
     fb.style.maxWidth=w+'px';fb.style.setProperty('--p',clamp(1-(w-44)/Math.max(1,FULL-44),0,1));},{passive:false});
   const end=e=>{if(!on)return;on=false;const v=dx/Math.max(1,performance.now()-t0);
     let target=S.fmini;if(!S.fmini&&(dx>60||(dx>24&&v>.35)))target=true;else if(S.fmini&&(dx<-40||(dx<-16&&v<-.35)))target=false;
