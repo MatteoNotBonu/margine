@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='32e7b23';</script>
+<script>window.MARGINE_VER='4ce4bc0';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -1086,7 +1086,7 @@ spop.addEventListener('input',e=>{const t=e.target;if(!S.sel)return;
     for(const it of selShapes()){const n=p.nodes.get(it.id);if(!n)continue;if(t.dataset.scc)n.setAttribute('stroke',c);else if(shapeClosed(it)){n.setAttribute('fill',c);n.setAttribute('fill-opacity',it.fop==null?.3:it.fop);}}return;}
   if(t.id!=='sfop')return;const p=S.pages[S.sel.pg],v=+e.target.value/100;for(const it of selShapes()){const n=p.nodes.get(it.id);if(n&&it.fill)n.setAttribute('fill-opacity',v);}});
 spop.addEventListener('change',e=>{const t=e.target;
-  if(t.dataset.scc||t.dataset.sfc){const c=t.value;S.custom=c;saveCfg();renderDock();
+  if(t.dataset.scc||t.dataset.sfc){const c=t.value;t.blur();S.custom=c;saveCfg();renderDock();
     if(t.dataset.scc)patchShapes(it=>Object.assign({},it,{color:c}));else patchShapes(it=>shapeClosed(it)?Object.assign({},it,{fill:c,fop:it.fop==null?.3:it.fop}):it);return;}
   if(t.id!=='sfop')return;const v=r2(+e.target.value/100);patchShapes(it=>it.fill?Object.assign({},it,{fop:v}):it);});
 
@@ -1259,7 +1259,11 @@ function rulerTouch(e){if(!RU.on)return false;const ts=rulerTouches(e);
 let lastPtrT=0;
 function dropStaleA(){if(!A||A.suspended||performance.now()-lastPtrT<2000)return;const a=A;
   if(a.kind==='tap'){A=null;return;}try{onUp({pointerId:a.id,type:'pointerup',clientX:a.x||0,clientY:a.y||0});}catch(_){A=null;}if(A===a)A=null;logErr('tratto senza fine chiuso',a.kind);}
-function onDown(e){if(S.tsel)return;dropStaleA();lastPtrT=performance.now();
+function onDown(e){if(S.tsel)return;
+  /* una nuova discesa della Pencil vuol dire che il tratto precedente è finito, anche se iPadOS non ha consegnato il sollevamento
+     (succede per esempio quando il tocco chiude il selettore colori): lo chiudo subito invece di ignorare i tratti nuovi */
+  if(A&&!A.suspended&&A.kind!=='tap'&&e.pointerType!=='touch'){const a=A;try{onUp({pointerId:a.id,type:'pointerup',clientX:a.x||0,clientY:a.y||0});}catch(_){}if(A===a)A=null;liveOff(a.p);logErr('tratto senza fine chiuso da un nuovo tocco',a.kind);}
+  dropStaleA();lastPtrT=performance.now();
   if(e.target.closest('.tedit,.selmenu,.tbar'))return;
   if(S.editing){finishText();if(e.pointerType==='touch'||S.tool!=='text')return;}
   if(A&&A.suspended)finishSuspended();
@@ -1606,6 +1610,7 @@ $('#bUndo').onclick=()=>hist(-1);$('#bRedo').onclick=()=>hist(1);
 el.tools.addEventListener('click',e=>{const b=e.target.closest('.tool');if(b)selectTool(b.dataset.t);});
 el.sw.addEventListener('click',e=>{const d=e.target.closest('.dot');if(!d||d.classList.contains('custom'))return;applyColor(d.dataset.c);});
 el.sw.addEventListener('input',e=>{if(e.target.id==='cpick'){S.custom=e.target.value;applyColor(e.target.value);}});
+el.sw.addEventListener('change',e=>{if(e.target.id==='cpick')e.target.blur();});
 el.dock.addEventListener('mousedown',e=>{if(!e.target.closest('input'))e.preventDefault();});
 el.pop.addEventListener('mousedown',e=>{if(!e.target.closest('input'))e.preventDefault();});
 el.pop.addEventListener('click',e=>{const m=e.target.closest('[data-m]');if(m){S.cfg.eraser.mode=m.dataset.m;saveCfg();openPop();return;}const b=e.target.closest('.wopt');if(!b)return;S.cfg[S.tool].wi=+b.dataset.k;saveCfg();
@@ -1724,7 +1729,9 @@ function syncTouches(e){const live=new Set();let stylus=false;
   if(RU.g&&!e.touches.length)RU.g=null;}
 ['touchstart','touchmove','touchend','touchcancel'].forEach(t=>sc.addEventListener(t,onTouch,{passive:false}));
 /* la Pencil viene tracciata prima che parta il disegno, così il palmo appoggiato viene annullato in tempo */
-sc.addEventListener('pointerdown',e=>{if(e.pointerType==='pen'&&S.markup&&!S.tsel)penLanded();});
+sc.addEventListener('pointerdown',e=>{if(e.pointerType==='pen'&&S.markup&&!S.tsel){penLanded();
+  /* un campo ancora attivo (es. il selettore colori appena chiuso) farebbe intervenire Scribble sui tratti della Pencil */
+  const ae=document.activeElement;if(ae&&ae.matches&&ae.matches('input,select,textarea'))ae.blur();}});
 sc.addEventListener('pointermove',e=>{if(e.pointerType==='pen'&&S.markup&&e.buttons)PALM.penT=performance.now();},{passive:true});
 sc.addEventListener('pointerup',e=>{if(e.pointerType==='pen'){PALM.penDown=false;PALM.penT=performance.now();}});
 sc.addEventListener('pointercancel',e=>{if(e.pointerType==='pen')PALM.penT=performance.now();});
