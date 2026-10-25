@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='8457f0e';</script>
+<script>window.MARGINE_VER='1b69364';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -91,7 +91,7 @@ svg{display:block}
 .live-fixed{position:fixed;pointer-events:none;z-index:15}
 .tl{display:flex;align-items:center;gap:10px;min-width:0}
 .tc{justify-self:center}.tr{justify-self:end}
-.ttl{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;line-height:1.25}
+.ttl{flex:1;min-width:0;contain:inline-size;display:flex;flex-direction:column;align-items:flex-start;line-height:1.25}
 .ttl .sub{font:inherit;font-size:12px;color:var(--fg2);text-align:left;padding:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:900px){#bBack .lbl-t{display:none}#bBack{width:38px;padding:0;justify-content:center}}
 @media (max-width:640px){.ttl{display:none}}
@@ -161,7 +161,7 @@ svg{display:block}
 }
 @media (max-width:800px){
   .reader.focus .top{padding-top:calc(62px + env(safe-area-inset-top,0px))}
-  .reader.focus .top .tc{grid-column:1/-1;justify-self:end}
+  .reader.focus .top .tc{grid-column:1/-1;justify-self:center}
   .reader.focus #lockbar{margin-top:118px}
   .reader.focus #searchbar{top:calc(116px + env(safe-area-inset-top,0px))}
 }
@@ -172,7 +172,8 @@ svg{display:block}
   .dock{zoom:.76}
   .reader.side{--sidew:104px}.thumb{width:92px}.tbox{width:72px}
 }
-@media (max-width:380px){
+@media (max-width:560px){.top .ib{width:34px;height:34px}}
+@media (max-width:480px){
   .top{grid-template-columns:1fr auto;row-gap:6px}
   .top .tc{grid-column:1/-1;grid-row:2;justify-self:center}
 }
