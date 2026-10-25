@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='f359d3a';</script>
+<script>window.MARGINE_VER='21b3edf';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -120,6 +120,7 @@ svg{display:block}
 .pages .tedit{-webkit-user-select:text;user-select:text}
 .page{position:relative;flex:none;background:#fff;box-shadow:var(--page-shadow);contain:layout paint}
 .page .pdfc,.page svg,.page .live{position:absolute;inset:0;width:100%;height:100%}
+.page .pdfc,.page .pno{pointer-events:none}
 .page svg{pointer-events:none;overflow:visible}
 .page svg.hl{mix-blend-mode:multiply}
 .page svg.lv.mul{mix-blend-mode:multiply}
@@ -929,7 +930,10 @@ function rulerTouch(e){if(!RU.on)return false;const ts=rulerTouches(e);
   else if(g.n===2&&ts.length>=2){const[t1,t2]=ts;RU.cx=g.cx+(t1.clientX+t2.clientX)/2-g.mx;RU.cy=g.cy+(t1.clientY+t2.clientY)/2-g.my;
     let a=g.a+Math.atan2(t2.clientY-t1.clientY,t2.clientX-t1.clientX)-g.ang;const st=Math.PI/4,near=Math.round(a/st)*st;if(Math.abs(a-near)<.045)a=near;RU.a=a;}
   const sc=el.scroller;RU.cx=clamp(RU.cx,0,sc.clientWidth);RU.cy=clamp(RU.cy,0,sc.clientHeight);placeRuler();return true;}
-function onDown(e){
+let lastPtrT=0;
+function dropStaleA(){if(!A||A.suspended||performance.now()-lastPtrT<2000)return;const a=A;
+  if(a.kind==='tap'){A=null;return;}try{onUp({pointerId:a.id,type:'pointerup',clientX:a.x||0,clientY:a.y||0});}catch(_){A=null;}if(A===a)A=null;logErr('tratto senza fine chiuso',a.kind);}
+function onDown(e){dropStaleA();lastPtrT=performance.now();
   if(e.target.closest('.tedit,.selmenu'))return;
   if(S.editing){finishText();if(e.pointerType==='touch'||S.tool!=='text')return;}
   if(A&&A.suspended)finishSuspended();
@@ -957,7 +961,7 @@ function onDown(e){
     if(H&&Math.hypot(pt[0]-H.x,pt[1]-H.y)<22/S.scale){const it=(S.ann[p.i]||[]).find(q=>S.sel.ids.has(q.id));if(it){A={kind:'resize',p,it,w:it.w,h:it.h,id:e.pointerId};selmenu.remove();p.gG.textContent='';return;}}
     if(selHit(p,pt)){A={kind:'move',p,start:pt,dx:0,dy:0,id:e.pointerId};selmenu.remove();return;}
     clearSel();liveOn(p);A={kind:'lasso',p,poly:[pt[0],pt[1]],id:e.pointerId};A.node=guide(p,'path','lasso');return;}}
-function onMove(e){if(!A||e.pointerId!==A.id)return;
+function onMove(e){if(!A||e.pointerId!==A.id)return;lastPtrT=performance.now();
   if(A.kind==='tap')return;
   e.preventDefault();
   let evs=e.getCoalescedEvents?e.getCoalescedEvents():null;if(!evs||!evs.length)evs=[e];
@@ -1263,7 +1267,7 @@ sc.addEventListener('dragstart',e=>e.preventDefault());
 const PALM={penDown:false,penT:0,cool:600,radius:40,reverted:false,hintT:0};
 const TOUCH={f:new Map(),pan:null,pinch:null,palm:false,gs:null};
 const RADII=[];
-function penBusy(){return S.markup&&(PALM.penDown||performance.now()-PALM.penT<PALM.cool);}
+function penBusy(){const n=performance.now();return S.markup&&((PALM.penDown&&n-PALM.penT<2500)||n-PALM.penT<PALM.cool);}
 const tRadius=t=>Math.max(t.radiusX||0,t.radiusY||0,t.webkitRadiusX||0,t.webkitRadiusY||0);
 let MOM=0;
 function stopMom(){if(MOM){cancelAnimationFrame(MOM);MOM=0;}}
@@ -1326,7 +1330,19 @@ function onTouch(e){const n=e.target;if(n&&n.closest&&n.closest('.tedit,.selmenu
   if(e.cancelable&&!textTap)e.preventDefault();
   if(typ==='touchstart'){const ae=document.activeElement;if(ae&&ae.matches&&ae.matches('input'))ae.blur();}
   if(RU.on){if(penBusy()||TOUCH.palm)RU.g=null;else if((RU.g||typ==='touchstart')&&rulerTouch(e))return;}
-  if(typ==='touchstart')fingerStart(e);else if(typ==='touchmove')fingerMove(e);else fingerEnd(e);}
+  if(typ!=='touchstart'&&typ!=='touchmove'){fingerEnd(e);syncTouches(e);return;}
+  syncTouches(e);if(typ==='touchstart')fingerStart(e);else fingerMove(e);}
+/* se iPadOS non consegna la fine di un tocco (gesto di sistema, elemento ridisegnato), quel dito resterebbe "appoggiato" per sempre */
+function syncTouches(e){const live=new Set();let stylus=false;
+  for(const t of e.touches){if(t.touchType==='stylus'&&S.markup){stylus=true;continue;}live.add(t.identifier);}
+  if(e.type!=='touchstart')for(const t of e.changedTouches)if(e.type==='touchmove')live.add(t.identifier);
+  let lost=0;for(const id of[...TOUCH.f.keys()]){if(e.type==='touchstart'&&[...e.changedTouches].some(t=>t.identifier===id))continue;if(!live.has(id)){TOUCH.f.delete(id);lost++;
+      if(TOUCH.pan&&TOUCH.pan.id===id)TOUCH.pan=null;
+      if(TOUCH.pinch&&(TOUCH.pinch.ia===id||TOUCH.pinch.ib===id)){if(TOUCH.pinch.on)el.pages.style.transform='';TOUCH.pinch=null;}}}
+  if(lost)logErr('tocchi persi riallineati',lost+' dita');
+  if(!TOUCH.f.size){TOUCH.palm=false;TOUCH.gs=null;}
+  if(!stylus&&PALM.penDown&&!(A&&A.kind!=='tap')){PALM.penDown=false;}
+  if(RU.g&&!e.touches.length)RU.g=null;}
 ['touchstart','touchmove','touchend','touchcancel'].forEach(t=>sc.addEventListener(t,onTouch,{passive:false}));
 /* la Pencil viene tracciata prima che parta il disegno, così il palmo appoggiato viene annullato in tempo */
 sc.addEventListener('pointerdown',e=>{if(e.pointerType==='pen'&&S.markup)penLanded();});
