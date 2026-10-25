@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='7a44ced';</script>
+<script>window.MARGINE_VER='32e7b23';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -151,6 +151,7 @@ svg{display:block}
 .selmenu button:active{background:rgba(255,255,255,.15)}
 
 /* Barra strumenti flottante */
+.dock,.dock *,.top,.top *,.fbar,.fbar *,.pop,.pop *,.menu,.menu *,.selmenu,.selmenu *,.tselbar,.tselbar *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .dock{position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:calc(100% - 24px);z-index:30;filter:drop-shadow(0 10px 24px rgba(0,0,0,.28));transition:transform .5s cubic-bezier(.18,1.25,.32,1),opacity .22s ease,visibility 0s}
 .menu .m-narrow{display:none}
 /* schermo diviso e finestre strette */
@@ -236,6 +237,8 @@ svg{display:block}
 .spop .srow{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}
 .sdot{width:30px;height:30px;border-radius:50%;background:var(--c);flex:none;position:relative}
 .sdot.on{box-shadow:0 0 0 2px var(--dock),0 0 0 4px #fff}
+.sdot.custom{background:radial-gradient(circle,var(--c) 0 46%,transparent 48%),conic-gradient(#ff3b30,#ffcc00,#34c759,#5ac8fa,#0a84ff,#bf5af2,#ff3b30);cursor:pointer;display:block}
+.sdot.custom input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0}
 .sdot.none{background:transparent;border:2px solid rgba(255,255,255,.7)}
 .sdot.none::after{content:'';position:absolute;left:50%;top:-1px;bottom:-1px;width:2px;margin-left:-1px;background:#ff453a;transform:rotate(45deg);border-radius:1px}
 .spop .wrow{gap:4px}.spop .wopt{width:46px}
@@ -740,7 +743,7 @@ function instr(t,c){c=c||'#fff';const body=(x,w,y=30)=>`<rect x="${x}" y="${y}" 
   case'eraser':return`<svg viewBox="0 0 40 90"><rect x="11" y="10" width="18" height="26" rx="6" fill="#ff8f9c"/><rect x="11" y="27" width="18" height="6" fill="#e5e5ea"/>${body(11,18,33)}</svg>`;
   case'lasso':return`<svg viewBox="0 0 40 90"><ellipse cx="20" cy="13" rx="9" ry="6.5" fill="none" stroke="#fff" stroke-width="1.8" stroke-dasharray="3 2.4"/><path d="M14 19 Q12 25 17 27" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>${body(12,16,30)}</svg>`;
   case'line':{let ticks='';for(let y=14;y<92;y+=5)ticks+=`<rect x="10" y="${y}" width="${(y-14)%10===0?8:5}" height="1.1" fill="rgba(255,255,255,.8)"/>`;return`<svg viewBox="0 0 40 90"><rect x="10" y="8" width="20" height="86" rx="2" fill="var(--inst)"/>${ticks}</svg>`;}
-  case'text':return`<svg viewBox="0 0 40 90">${body(11,18,18)}<text x="20" y="38" text-anchor="middle" font-size="17" font-weight="700" font-family="-apple-system,Helvetica,Arial,sans-serif" fill="${c==='#1c1c1e'?'#fff':c}">A</text></svg>`;}
+  case'text':return`<svg viewBox="0 0 40 90">${body(11,18,18)}<path d="M14 38.5 20 22 26 38.5M16.3 32.6h7.4" fill="none" stroke="${c==='#1c1c1e'?'#fff':c}" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"/></svg>`;}
   return'';}
 function renderDock(){
   el.tools.innerHTML=ORDER.map((t,k)=>`<button class="tool${(t==='line'?RU.on:t===S.tool)?' on':''}" style="--i:${k}" data-t="${t}" aria-label="${TOOLS[t].name}" title="${TOOLS[t].name}">${instr(t,(S.cfg[t]||{}).color)}</button>`).join('');
@@ -1051,10 +1054,12 @@ const SHW=[.6,1.2,2,3,4.5];
 function selShapes(){if(!S.sel)return[];return(S.ann[S.sel.pg]||[]).filter(it=>S.sel.ids.has(it.id)&&it.kind==='shape');}
 function openSpop(){const sh=selShapes();if(!sh.length){spop.hidden=true;return;}const f=sh[0],closed=sh.some(shapeClosed),hl=sh.every(q=>q.tool==='hl');
   const W=hl?TOOLS.hl.widths:SHW;let wi=0;W.forEach((w,k)=>{if(Math.abs(w-f.w)<Math.abs(W[wi]-f.w))wi=k;});
-  const cols=PALETTE.concat(PALETTE.includes(S.custom)?[]:[S.custom]),fop=f.fop==null?.3:f.fop;
+  const cols=PALETTE,fop=f.fop==null?.3:f.fop;
+  /* colore personalizzato: stesso selettore dei colori di penne ed evidenziatori */
+  const cust=(at,cur)=>{const own=!!cur&&!PALETTE.includes(cur),c=own?cur:S.custom;return`<label class="sdot custom${own?' on':''}" style="--c:${c}" aria-label="Colore personalizzato"><input type="color" data-${at}="1" value="${c}"></label>`;};
   const dot=(at,c,on)=>`<button class="sdot${on?' on':''}" data-${at}="${c}" style="--c:${c}" aria-label="Colore ${c}"></button>`;
-  let h=`<div class="plabel">Bordo</div><div class="srow">${cols.map(c=>dot('sc',c,c===f.color)).join('')}</div>`;
-  if(closed){const ff=sh.find(q=>shapeClosed(q))||f;h+=`<div class="plabel">Riempimento</div><div class="srow"><button class="sdot none${ff.fill?'':' on'}" data-sf="" aria-label="Nessun riempimento"></button>${cols.map(c=>dot('sf',c,c===ff.fill)).join('')}</div>`;
+  let h=`<div class="plabel">Bordo</div><div class="srow">${cols.map(c=>dot('sc',c,c===f.color)).join('')}${cust('scc',f.color)}</div>`;
+  if(closed){const ff=sh.find(q=>shapeClosed(q))||f;h+=`<div class="plabel">Riempimento</div><div class="srow"><button class="sdot none${ff.fill?'':' on'}" data-sf="" aria-label="Nessun riempimento"></button>${cols.map(c=>dot('sf',c,c===ff.fill)).join('')}${cust('sfc',ff.fill)}</div>`;
     if(ff.fill)h+=`<div class="orow"><input type="range" id="sfop" min="10" max="100" value="${Math.round((ff.fop==null?.3:ff.fop)*100)}" style="--c:${ff.fill}" aria-label="Opacità del riempimento"></div>`;}
   const lf=sh.find(q=>q.type==='line');
   if(lf){const ic=d=>`<svg width="34" height="14" viewBox="0 0 34 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7H31"/>${d}</svg>`;
@@ -1076,8 +1081,14 @@ spop.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)retur
   else if(b.dataset.sf!=null){const c=b.dataset.sf||null;patchShapes(it=>shapeClosed(it)?Object.assign({},it,{fill:c,fop:it.fop==null?.3:it.fop}):it);}
   else if(b.dataset.sh!=null){const v=+b.dataset.sh;patchShapes(it=>it.type==='line'?Object.assign({},it,{head:v||undefined}):it);}
   else if(b.dataset.sw!=null){const W=spop.dataset.hl?TOOLS.hl.widths:SHW,w=W[+b.dataset.sw];patchShapes(it=>Object.assign({},it,{w}));}});
-spop.addEventListener('input',e=>{if(e.target.id!=='sfop'||!S.sel)return;const p=S.pages[S.sel.pg],v=+e.target.value/100;for(const it of selShapes()){const n=p.nodes.get(it.id);if(n&&it.fill)n.setAttribute('fill-opacity',v);}});
-spop.addEventListener('change',e=>{if(e.target.id!=='sfop')return;const v=r2(+e.target.value/100);patchShapes(it=>it.fill?Object.assign({},it,{fop:v}):it);});
+spop.addEventListener('input',e=>{const t=e.target;if(!S.sel)return;
+  if(t.dataset.scc||t.dataset.sfc){const p=S.pages[S.sel.pg],c=t.value;t.parentNode.style.setProperty('--c',c);
+    for(const it of selShapes()){const n=p.nodes.get(it.id);if(!n)continue;if(t.dataset.scc)n.setAttribute('stroke',c);else if(shapeClosed(it)){n.setAttribute('fill',c);n.setAttribute('fill-opacity',it.fop==null?.3:it.fop);}}return;}
+  if(t.id!=='sfop')return;const p=S.pages[S.sel.pg],v=+e.target.value/100;for(const it of selShapes()){const n=p.nodes.get(it.id);if(n&&it.fill)n.setAttribute('fill-opacity',v);}});
+spop.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.scc||t.dataset.sfc){const c=t.value;S.custom=c;saveCfg();renderDock();
+    if(t.dataset.scc)patchShapes(it=>Object.assign({},it,{color:c}));else patchShapes(it=>shapeClosed(it)?Object.assign({},it,{fill:c,fop:it.fop==null?.3:it.fop}):it);return;}
+  if(t.id!=='sfop')return;const v=r2(+e.target.value/100);patchShapes(it=>it.fill?Object.assign({},it,{fop:v}):it);});
 
 /* immagine: 4 maniglie agli angoli (proporzionali) e 4 sui lati (allungano un solo lato) */
 const HPOS=[[0,0],[1,0],[0,1],[1,1],[.5,0],[.5,1],[0,.5],[1,.5]];
