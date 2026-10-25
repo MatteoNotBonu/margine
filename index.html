@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='237605d';</script>
+<script>window.MARGINE_VER='79347cd';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -70,6 +70,9 @@ svg{display:block}
 .doc-txt{min-width:0;display:flex;flex-direction:column;gap:3px}
 .doc-name{font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .doc-meta{color:var(--fg2);font-size:13px;font-variant-numeric:tabular-nums}
+.doc-st{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-st i{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none;opacity:.7}
+.doc-st.ok{color:var(--ok)}.doc-st.warn{color:var(--warn)}
 .doc-exp{flex:none;height:34px;width:34px;border-radius:17px;display:grid;place-items:center;color:var(--accent)}
 .doc-exp:active,.doc-del:active{background:var(--chip)}
 .doc-del{flex:none;height:34px;min-width:34px;border-radius:17px;display:grid;place-items:center;color:var(--fg2);padding:0 10px;font-size:13px;font-weight:600}
@@ -776,6 +779,16 @@ function openPop(){const t=S.tool,T=TOOLS[t];if(!T.widths)return;const cfg=S.cfg
 function closePop(){el.pop.hidden=true;}
 
 /* ---------- apertura documenti ---------- */
+/* "oggi alle 18:40", "ieri alle 9:05", "25 ott alle 18:40", con l'anno se diverso */
+function whenLong(t){const d=new Date(t),now=new Date(),day=x=>new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime(),dd=Math.round((day(now)-day(d))/864e5);
+  const time=d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  if(dd===0)return'oggi alle '+time;if(dd===1)return'ieri alle '+time;
+  return d.toLocaleDateString('it-IT',Object.assign({day:'numeric',month:'short'},d.getFullYear()!==now.getFullYear()?{year:'numeric'}:{}))+' alle '+time;}
+/* stato rispetto al file salvato in File */
+function docState(d){const ed=d.editedAt||0,ex=d.exportedAt||0;
+  if(ed>ex)return`<span class="doc-st warn"><i></i>Modifiche da salvare su File</span>`;
+  if(ex)return`<span class="doc-st ok"><i></i>Sincronizzato su File · ${whenLong(ex)}</span>`;
+  return`<span class="doc-st"><i></i>Nessuna modifica</span>`;}
 async function renderRecents(){let docs=[];try{docs=await DB.all('docs');
     try{const prev=+(localStorage.getItem('margine.ndocs')||0);if(prev>0&&docs.length===0&&localStorage.getItem('margine.lastdel')!=='1')logErr('libreria vuota inattesa',`prima ${prev} documenti, ora 0`);localStorage.setItem('margine.ndocs',docs.length);localStorage.removeItem('margine.lastdel');}catch(_){}
   }catch(e){logErr('lettura libreria',e);
@@ -783,7 +796,7 @@ async function renderRecents(){let docs=[];try{docs=await DB.all('docs');
   $('#empty').innerHTML='<strong>Nessun PDF ancora</strong>Tocca Apri PDF e scegli il file da File, iCloud Drive o Download.';
   docs.sort((a,b)=>(b.updated||0)-(a.updated||0));const box=$('#recents');
   $('#empty').hidden=docs.length>0;box.hidden=!docs.length;
-  box.innerHTML=docs.map(d=>`<div class="doc"><button class="doc-open" data-id="${esc(d.id)}"${d.v?'':' data-stale="1"'}><span class="doc-thumb">${d.thumb?`<img src="${d.thumb}" alt="">`:'<span>PDF</span>'}</span><span class="doc-txt"><span class="doc-name">${esc(d.name)}</span><span class="doc-meta">${(d.size/1048576).toLocaleString('it-IT',{maximumFractionDigits:1})} MB${d.pages?` · ${d.pages} pagine`:''} · ${new Date(d.updated||d.added).toLocaleDateString('it-IT',{day:'numeric',month:'short'})}${d.v?'':' · <b style="color:var(--accent)">tocca per riaprire il file</b>'}${d.v&&(d.editedAt||0)>(d.exportedAt||0)?' · <b style="color:var(--warn)">non salvato in File</b>':''}</span></span></button><button class="doc-exp" data-id="${esc(d.id)}" aria-label="Salva in File" title="Salva in File"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/></svg></button><button class="doc-del" data-id="${esc(d.id)}" aria-label="Rimuovi dalla libreria"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg></button></div>`).join('');}
+  box.innerHTML=docs.map(d=>`<div class="doc"><button class="doc-open" data-id="${esc(d.id)}"${d.v?'':' data-stale="1"'}><span class="doc-thumb">${d.thumb?`<img src="${d.thumb}" alt="">`:'<span>PDF</span>'}</span><span class="doc-txt"><span class="doc-name">${esc(d.name)}</span><span class="doc-meta">${(d.size/1048576).toLocaleString('it-IT',{maximumFractionDigits:1})} MB${d.pages?` · ${d.pages} pagine`:''} · ${d.editedAt?'Modificato '+whenLong(d.editedAt):'Aggiunto '+whenLong(d.added)}</span>${d.v?docState(d):'<span class="doc-st"><b style="color:var(--accent)">Tocca per riaprire il file</b></span>'}</span></button><button class="doc-exp" data-id="${esc(d.id)}" aria-label="Salva in File" title="Salva in File"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/></svg></button><button class="doc-del" data-id="${esc(d.id)}" aria-label="Rimuovi dalla libreria"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg></button></div>`).join('');}
 /* iPadOS può passare il file prima che iCloud lo abbia scaricato del tutto: riprovo con attese crescenti e con FileReader */
 function readFR(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error||new Error('lettura non riuscita'));r.readAsArrayBuffer(file);});}
 async function readFileRobust(file){let last;
