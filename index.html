@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='4ce4bc0';</script>
+<script>window.MARGINE_VER='237605d';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -272,6 +272,7 @@ svg{display:block}
 .reader.focus .top .tc{pointer-events:auto;background:var(--chrome);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:var(--shadow)}
 .reader.focus .searchbar{top:calc(64px + env(safe-area-inset-top,0px))}
 .page svg.img{pointer-events:none}
+.page svg.img.has{transform:translateZ(0);will-change:transform}
 .sel-handle{fill:#fff;stroke:#0a84ff;stroke-width:2;vector-effect:non-scaling-stroke}
 /* ritaglio immagine */
 .crop{position:fixed;inset:0;z-index:55;background:#0b0b0c;display:flex;flex-direction:column;touch-action:none;-webkit-user-select:none;user-select:none}
@@ -985,8 +986,10 @@ function itemNode(p,it){
   if(TOOLS[it.tool]&&TOOLS[it.tool].press){n.setAttribute('d',svgD(polySegs(outlinePoly(it.pts,it.w))));n.setAttribute('fill',it.color);if(it.op<1)n.setAttribute('fill-opacity',it.op);}
   else{n.setAttribute('d',svgD(monoSegs(it)));n.setAttribute('fill','none');n.setAttribute('stroke',it.color);n.setAttribute('stroke-width',it.w);n.setAttribute('stroke-linecap','round');n.setAttribute('stroke-linejoin','round');if(it.op<1)n.setAttribute('stroke-opacity',it.op);}
   return n;}
-function appendNode(p,it){const n=itemNode(p,it);p.nodes.set(it.id,n);(it.kind==='image'?p.gImg:it.tool==='hl'?p.gH:p.gI).append(n);}
-function renderInk(p){p.gH.textContent='';p.gI.textContent='';p.gImg.textContent='';p.nodes.clear();for(const it of(S.ann[p.i]||[]))appendNode(p,it);if(S.sel&&S.sel.pg===p.i)drawSel();}
+function appendNode(p,it){const n=itemNode(p,it);p.nodes.set(it.id,n);(it.kind==='image'?p.gImg:it.tool==='hl'?p.gH:p.gI).append(n);if(it.kind==='image')imgLayer(p);}
+/* livello immagini sempre su un proprio strato grafico: senza, ogni tratto vicino lo fa promuovere e retrocedere e la foto si sposta di un pixel su e giù */
+function imgLayer(p){const sv=p.gImg.ownerSVGElement;if(sv)sv.classList.toggle('has',!!p.gImg.firstChild);}
+function renderInk(p){p.gH.textContent='';p.gI.textContent='';p.gImg.textContent='';p.nodes.clear();for(const it of(S.ann[p.i]||[]))appendNode(p,it);imgLayer(p);if(S.sel&&S.sel.pg===p.i)drawSel();}
 
 /* ---------- storico e salvataggio ---------- */
 function markEdited(){if(S.meta){S.meta.editedAt=Date.now();updInd();}}
