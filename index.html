@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='0755808';</script>
+<script>window.MARGINE_VER='0d429d4';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -231,6 +231,16 @@ svg{display:block}
 .menu button:active{background:var(--chip)}
 .menu hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
 .menu .zl{color:var(--fg2);font-variant-numeric:tabular-nums}
+.menu .mchk{color:var(--fg2);font-size:14px}.menu .mchk.on{color:var(--accent)}
+.spop{width:auto;max-width:calc(100vw - 16px);gap:10px;z-index:32}
+.spop .srow{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}
+.sdot{width:30px;height:30px;border-radius:50%;background:var(--c);flex:none;position:relative}
+.sdot.on{box-shadow:0 0 0 2px var(--dock),0 0 0 4px #fff}
+.sdot.none{background:transparent;border:2px solid rgba(255,255,255,.7)}
+.sdot.none::after{content:'';position:absolute;left:50%;top:-1px;bottom:-1px;width:2px;margin-left:-1px;background:#ff453a;transform:rotate(45deg);border-radius:1px}
+.spop .wrow{gap:4px}.spop .wopt{width:46px}
+@keyframes snapin{from{opacity:.25}to{opacity:1}}
+.snapin{animation:snapin .2s ease-out}
 
 .searchbar{position:absolute;top:62px;right:max(16px,env(safe-area-inset-right,0px));z-index:25;width:min(420px,calc(100% - 32px));background:var(--card);border-radius:14px;box-shadow:var(--shadow),0 0 0 1px var(--line);overflow:hidden}
 .sb-row{display:flex;align-items:center;gap:6px;padding:6px 6px 6px 12px}
@@ -434,6 +444,7 @@ svg{display:block}
     <button data-act="focus">Schermo intero</button>
     <button data-act="search" class="m-narrow">Cerca</button>
     <button data-act="fit">Adatta alla larghezza <span class="zl" id="zl">100%</span></button>
+    <button data-act="shapes">Riconosci forme <span class="mchk" id="shapesChk"></span></button>
     <hr>
     <button data-act="close">Chiudi documento</button>
   </div>
@@ -525,8 +536,8 @@ const DB=(()=>{let p=null;
 
 function loadCfg(){let saved={};try{saved=JSON.parse(localStorage.getItem('margine.cfg')||'{}');}catch(e){}
   for(const t of ORDER){if(TOOLS[t].def)S.cfg[t]=Object.assign({},TOOLS[t].def,(saved.cfg||{})[t]||{});}
-  if(saved.tool&&TOOLS[saved.tool]&&saved.tool!=='line')S.tool=saved.tool; if(saved.lastInk&&TOOLS[saved.lastInk]&&saved.lastInk!=='line')S.lastInk=saved.lastInk; if(saved.custom)S.custom=saved.custom;if(saved.lock)S.lock=true;if(saved.fmini)S.fmini=true;if(saved.focus){S.focus=true;el.reader.classList.add('focus');}}
-function saveCfg(){try{localStorage.setItem('margine.cfg',JSON.stringify({cfg:S.cfg,tool:S.tool,lastInk:S.lastInk,custom:S.custom,focus:!!S.focus,lock:!!S.lock,fmini:!!S.fmini}));}catch(e){}}
+  if(saved.tool&&TOOLS[saved.tool]&&saved.tool!=='line')S.tool=saved.tool; if(saved.lastInk&&TOOLS[saved.lastInk]&&saved.lastInk!=='line')S.lastInk=saved.lastInk; if(saved.custom)S.custom=saved.custom;if(saved.lock)S.lock=true;if(saved.fmini)S.fmini=true;S.shapes=saved.shapes!==false;if(saved.focus){S.focus=true;el.reader.classList.add('focus');}}
+function saveCfg(){try{localStorage.setItem('margine.cfg',JSON.stringify({cfg:S.cfg,tool:S.tool,lastInk:S.lastInk,custom:S.custom,focus:!!S.focus,lock:!!S.lock,fmini:!!S.fmini,shapes:S.shapes!==false}));}catch(e){}}
 
 /* ---------- PDF.js worker ---------- */
 async function setupWorker(){
@@ -596,6 +607,7 @@ function svgD(segs){return segs.map(g=>g[0]==='Z'?'Z':g[0]+g.slice(1).map(fx).jo
 function pdfOps(segs){let cx=0,cy=0;const o=[];
   for(const g of segs){if(g[0]==='M'){o.push(`${fx(g[1])} ${fx(g[2])} m`);cx=g[1];cy=g[2];}
     else if(g[0]==='L'){o.push(`${fx(g[1])} ${fx(g[2])} l`);cx=g[1];cy=g[2];}
+    else if(g[0]==='C'){o.push(`${fx(g[1])} ${fx(g[2])} ${fx(g[3])} ${fx(g[4])} ${fx(g[5])} ${fx(g[6])} c`);cx=g[5];cy=g[6];}
     else if(g[0]==='Q'){const[,qx,qy,x,y]=g;o.push(`${fx(cx+2/3*(qx-cx))} ${fx(cy+2/3*(qy-cy))} ${fx(x+2/3*(qx-x))} ${fx(y+2/3*(qy-y))} ${fx(x)} ${fx(y)} c`);cx=x;cy=y;}
     else o.push('h');}
   return o.join('\n');}
@@ -604,6 +616,87 @@ function simplify(pts,eps){const n=pts.length/3;if(n<3)return pts.map((v,i)=>i%3
   while(st.length){const[a,b]=st.pop();let md=0,mi=-1;for(let i=a+1;i<b;i++){const d=segDist(pts[i*3],pts[i*3+1],pts[a*3],pts[a*3+1],pts[b*3],pts[b*3+1]);if(d>md){md=d;mi=i;}}if(md>eps&&mi>0){keep[mi]=1;st.push([a,mi],[mi,b]);}}
   const out=[];for(let i=0;i<n;i++)if(keep[i])out.push(r2(pts[i*3]),r2(pts[i*3+1]),Math.round(pts[i*3+2]*100)/100);return out;}
 
+/* ---------- forme: riconoscimento ---------- */
+/* punti equidistanti lungo il tratto (coppie x,y) */
+function evenXY(P,n,closed){const m=P.length/2,seg=[];let L=0;const cnt=closed?m:m-1;
+  for(let i=0;i<cnt;i++){const j=(i+1)%m,l=Math.hypot(P[j*2]-P[i*2],P[j*2+1]-P[i*2+1]);seg.push(l);L+=l;}
+  if(!L)return null;const o=[],step=L/(closed?n:n-1);let i=0,acc=0;
+  for(let k=0;k<n;k++){const t=k*step;while(i<cnt-1&&acc+seg[i]<t){acc+=seg[i];i++;}const j=(i+1)%m,f=seg[i]?clamp((t-acc)/seg[i],0,1):0;
+    o.push(P[i*2]+(P[j*2]-P[i*2])*f,P[i*2+1]+(P[j*2+1]-P[i*2+1])*f);}return o;}
+function rdpIdx(Q,a,b,eps,out){let md=0,mi=-1;for(let i=a+1;i<b;i++){const d=segDist(Q[i*2],Q[i*2+1],Q[a*2],Q[a*2+1],Q[b*2],Q[b*2+1]);if(d>md){md=d;mi=i;}}
+  if(md>eps&&mi>0){rdpIdx(Q,a,mi,eps,out);out.push(mi);rdpIdx(Q,mi,b,eps,out);}}
+function polyDev(Q,V){const n=Q.length/2,k=V.length/2;let s=0;for(let i=0;i<n;i++){let m=1e9;for(let j=0;j<k;j++){const q=(j+1)%k;m=Math.min(m,segDist(Q[i*2],Q[i*2+1],V[j*2],V[j*2+1],V[q*2],V[q*2+1]));}s+=m;}return s/n;}
+const snapAng=(a,step,tol)=>{const s=Math.round(a/step)*step;return Math.abs(a-s)<tol?s:a;};
+/* k = pixel per unità della pagina; onlyLine per l'evidenziatore */
+function recognize(src,k,onlyLine){
+  const P=[];for(let i=0;i<src.length;i+=3)P.push(src[i],src[i+1]);const m=P.length/2;if(m<3)return null;
+  let L=0,x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(let i=0;i<m;i++){if(i)L+=Math.hypot(P[i*2]-P[i*2-2],P[i*2+1]-P[i*2-1]);x0=Math.min(x0,P[i*2]);x1=Math.max(x1,P[i*2]);y0=Math.min(y0,P[i*2+1]);y1=Math.max(y1,P[i*2+1]);}
+  if(L*k<36)return null;const G=Math.hypot(x1-x0,y1-y0);
+  const ax=P[0],ay=P[1],bx=P[m*2-2],by=P[m*2-1],D=Math.hypot(bx-ax,by-ay);
+  /* linea: il tratto è lungo quasi quanto la distanza fra gli estremi e non si allontana dalla corda */
+  let md=0;for(let i=0;i<m;i++)md=Math.max(md,segDist(P[i*2],P[i*2+1],ax,ay,bx,by));
+  if(D/L>.86&&md<Math.max(6/k,.08*D)){let ang=Math.atan2(by-ay,bx-ax);const a2=snapAng(ang,Math.PI/4,.07);const l=D;
+    return{type:'line',v:[ax,ay,ax+Math.cos(a2)*l,ay+Math.sin(a2)*l]};}
+  if(onlyLine)return null;
+  /* forme chiuse: gli estremi devono quasi toccarsi */
+  if(D>Math.max(.25*G,14/k)||G*k<44)return null;
+  const Q=evenXY(P,96,true);if(!Q)return null;const n=Q.length/2;
+  /* ellisse: assi dalla covarianza, raggi dalle estensioni nel sistema ruotato */
+  let mx=0,my=0;for(let i=0;i<n;i++){mx+=Q[i*2];my+=Q[i*2+1];}mx/=n;my/=n;
+  let sxx=0,syy=0,sxy=0;for(let i=0;i<n;i++){const dx=Q[i*2]-mx,dy=Q[i*2+1]-my;sxx+=dx*dx;syy+=dy*dy;sxy+=dx*dy;}
+  let th=.5*Math.atan2(2*sxy,sxx-syy);const c=Math.cos(th),s=Math.sin(th);
+  let u0=1e9,u1=-1e9,v0=1e9,v1=-1e9;const U=[],Vv=[];for(let i=0;i<n;i++){const dx=Q[i*2]-mx,dy=Q[i*2+1]-my,u=dx*c+dy*s,v=-dx*s+dy*c;U.push(u);Vv.push(v);u0=Math.min(u0,u);u1=Math.max(u1,u);v0=Math.min(v0,v);v1=Math.max(v1,v);}
+  let rx=(u1-u0)/2,ry=(v1-v0)/2;const cu=(u0+u1)/2,cv=(v0+v1)/2;
+  let ee=0;if(rx>0&&ry>0){for(let i=0;i<n;i++){const r=Math.hypot((U[i]-cu)/rx,(Vv[i]-cv)/ry);ee+=Math.abs(r-1);}ee=ee/n*Math.min(rx,ry)/G;}else ee=1;
+  /* poligono: Douglas-Peucker sul giro chiuso, poi tolgo i vertici quasi piatti */
+  let far=0,fd=0;for(let i=1;i<n;i++){const d=Math.hypot(Q[i*2]-Q[0],Q[i*2+1]-Q[1]);if(d>fd){fd=d;far=i;}}
+  const Qc=Q.concat([Q[0],Q[1]]);const idx=[0];rdpIdx(Qc,0,far,.055*G,idx);idx.push(far);rdpIdx(Qc,far,n,.055*G,idx);
+  let V=[];for(const i of idx)V.push(Qc[i*2],Qc[i*2+1]);
+  for(let changed=true;changed&&V.length>=6;){changed=false;const k2=V.length/2;
+    for(let j=0;j<k2;j++){const pj=(j+k2-1)%k2,nj=(j+1)%k2;const ax2=V[j*2]-V[pj*2],ay2=V[j*2+1]-V[pj*2+1],bx2=V[nj*2]-V[j*2],by2=V[nj*2+1]-V[j*2+1];
+      const la=Math.hypot(ax2,ay2),lb=Math.hypot(bx2,by2);const cosT=(ax2*bx2+ay2*by2)/((la*lb)||1);
+      if(cosT>Math.cos(35*Math.PI/180)||la<.08*G){V.splice(j*2,2);changed=true;break;}}}
+  /* angoli arrotondati: due vertici vicini che girano a metà ciascuno diventano un solo angolo (incrocio dei lati vicini) */
+  const turn=(V,j)=>{const k2=V.length/2,pj=(j+k2-1)%k2,nj=(j+1)%k2,ax2=V[j*2]-V[pj*2],ay2=V[j*2+1]-V[pj*2+1],bx2=V[nj*2]-V[j*2],by2=V[nj*2+1]-V[j*2+1];return Math.atan2(ax2*by2-ay2*bx2,ax2*bx2+ay2*by2);};
+  for(let changed=true;changed&&V.length>=8;){changed=false;const k2=V.length/2;
+    for(let j=0;j<k2;j++){const q=(j+1)%k2,l=Math.hypot(V[q*2]-V[j*2],V[q*2+1]-V[j*2+1]);if(l>.22*G)continue;
+      const t1=turn(V,j),t2=turn(V,q);if(Math.abs(t1)>1.15||Math.abs(t2)>1.15||t1*t2<=0)continue;
+      const pj=(j+k2-1)%k2,nq=(q+1)%k2;const x1=V[pj*2],y1=V[pj*2+1],x2=V[j*2],y2=V[j*2+1],x3=V[q*2],y3=V[q*2+1],x4=V[nq*2],y4=V[nq*2+1];
+      const den=(x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);if(Math.abs(den)<1e-9)continue;const tt=((x1-x3)*(y3-y4)-(y1-y3)*(x3-x4))/den;
+      const ix=x1+tt*(x2-x1),iy=y1+tt*(y2-y1);if(Math.hypot(ix-(x2+x3)/2,iy-(y2+y3)/2)>.3*G)continue;
+      if(q>j){V.splice(j*2,4,ix,iy);}else{V.splice(j*2,2);V.splice(0,2,ix,iy);}changed=true;break;}}
+  const kv=V.length/2;const pe=kv>=3?polyDev(Q,V)/G:1;
+  if(kv===4&&pe<.04&&pe<=ee*1.15){
+    /* rettangolo: direzione media dei lati (modulo 90°), poi estremi medi nel sistema ruotato */
+    let cs=0,sn=0;for(let j=0;j<4;j++){const q=(j+1)%4,dx=V[q*2]-V[j*2],dy=V[q*2+1]-V[j*2+1],l=Math.hypot(dx,dy),a=Math.atan2(dy,dx)*4;cs+=Math.cos(a)*l;sn+=Math.sin(a)*l;}
+    let a=Math.atan2(sn,cs)/4;if(Math.abs(a)<8*Math.PI/180)a=0;const ca=Math.cos(a),sa=Math.sin(a);
+    const R=[];for(let j=0;j<4;j++){const x=V[j*2],y=V[j*2+1];R.push([x*ca+y*sa,-x*sa+y*ca]);}
+    const xs=R.map(q=>q[0]).sort((p,q)=>p-q),ys=R.map(q=>q[1]).sort((p,q)=>p-q);
+    let l=(xs[0]+xs[1])/2,r=(xs[2]+xs[3])/2,t=(ys[0]+ys[1])/2,b=(ys[2]+ys[3])/2;
+    const w=r-l,h=b-t;if(Math.abs(w-h)<.08*Math.max(w,h)){const s2=(w+h)/2,cx=(l+r)/2,cy=(t+b)/2;l=cx-s2/2;r=cx+s2/2;t=cy-s2/2;b=cy+s2/2;}
+    const back=(x,y)=>[x*ca-y*sa,x*sa+y*ca];const v=[...back(l,t),...back(r,t),...back(r,b),...back(l,b)];
+    return{type:'rect',v};}
+  if(kv===3&&pe<.045&&pe<=ee*1.3)return{type:'tri',v:V.slice()};
+  if(ee<.05){let a=th,rX=rx,rY=ry;const cx=mx+cu*c-cv*s,cy=my+cu*s+cv*c;
+    if(Math.abs(rX-rY)<.12*Math.max(rX,rY)){rX=rY=(rX+rY)/2;a=0;}else{const a2=snapAng(a,Math.PI/2,10*Math.PI/180);if(a2!==a)a=a2;}
+    return{type:'ellipse',e:[cx,cy,rX,rY,a]};}
+  return null;}
+/* forme: geometria (spazio della pagina). Linea e poligoni: vertici v; ellisse: e=[cx,cy,rx,ry,angolo] */
+const KAPPA=.5522847498;
+function ellSegs(e){const[cx,cy,rx,ry,a]=e,c=Math.cos(a),s=Math.sin(a),k=KAPPA,P=(u,v)=>[cx+u*c-v*s,cy+u*s+v*c];
+  const Q=[[[rx,k*ry],[k*rx,ry],[0,ry]],[[-k*rx,ry],[-rx,k*ry],[-rx,0]],[[-rx,-k*ry],[-k*rx,-ry],[0,-ry]],[[k*rx,-ry],[rx,-k*ry],[rx,0]]];
+  const o=[['M',...P(rx,0)]];for(const q of Q)o.push(['C',...P(...q[0]),...P(...q[1]),...P(...q[2])]);o.push(['Z']);return o;}
+function shapeSegs(it){if(it.type==='ellipse')return ellSegs(it.e);const v=it.v,o=[['M',v[0],v[1]]];for(let i=2;i<v.length;i+=2)o.push(['L',v[i],v[i+1]]);if(it.type!=='line')o.push(['Z']);return o;}
+const shapeClosed=it=>it.type!=='line';
+const olCache=new WeakMap();
+function shapeOutline(it){let o=olCache.get(it);if(o)return o;
+  if(it.type==='ellipse'){const[cx,cy,rx,ry,a]=it.e,c=Math.cos(a),s=Math.sin(a);o=[];for(let k=0;k<48;k++){const t=k/48*Math.PI*2,u=rx*Math.cos(t),v=ry*Math.sin(t);o.push(cx+u*c-v*s,cy+u*s+v*c);}}
+  else o=it.v.slice();olCache.set(it,o);return o;}
+function roundShape(sh){const o=Object.assign({},sh);if(o.v)o.v=o.v.map(r2);if(o.e)o.e=[r2(o.e[0]),r2(o.e[1]),r2(o.e[2]),r2(o.e[3]),Math.round(o.e[4]*1e4)/1e4||0];return o;}
+/* gomma pixel su una forma: il contorno diventa un tratto normale, poi si taglia */
+function shapeStroke(it){const o=shapeOutline(it),cl=shapeClosed(it),pts=[];for(let i=0;i<o.length;i+=2)pts.push(o[i],o[i+1],.5);if(cl)pts.push(o[0],o[1],.5);
+  return{id:it.id,kind:'stroke',tool:it.tool==='hl'?'hl':'fine',color:it.color,w:it.w,op:it.op,pts};}
+
 /* testo: il blocco locale ha asse y verso il basso, ancorato in (x,y) dello spazio utente */
 const measCtx=document.createElement('canvas').getContext('2d');
 function measureText(text,size){measCtx.font=`${size}px Helvetica, Arial, sans-serif`;const lines=text.split('\n');let w=0;for(const l of lines)w=Math.max(w,measCtx.measureText(l).width);return{w:Math.max(w,size*.4),h:lines.length*size*1.2};}
@@ -611,9 +704,12 @@ function textCorners(p,it){const[a,b,c,d]=p.vt;return[[0,0],[it.w,0],[0,it.h],[i
 const bbCache=new WeakMap();
 function bboxOf(p,it){let b=bbCache.get(it);if(b)return b;
   if(it.kind==='text'||it.kind==='image'){const cs=textCorners(p,it);b=[Math.min(...cs.map(q=>q[0])),Math.min(...cs.map(q=>q[1])),Math.max(...cs.map(q=>q[0])),Math.max(...cs.map(q=>q[1]))];}
+  else if(it.kind==='shape'){const o=shapeOutline(it),h=it.w/2;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(let i=0;i<o.length;i+=2){x0=Math.min(x0,o[i]);x1=Math.max(x1,o[i]);y0=Math.min(y0,o[i+1]);y1=Math.max(y1,o[i+1]);}b=[x0-h,y0-h,x1+h,y1+h];}
   else{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;const pts=it.pts;for(let i=0;i<pts.length;i+=3){if(pts[i]<x0)x0=pts[i];if(pts[i]>x1)x1=pts[i];if(pts[i+1]<y0)y0=pts[i+1];if(pts[i+1]>y1)y1=pts[i+1];}const h=it.w*(TOOLS[it.tool]&&TOOLS[it.tool].press?.65:.5);b=[x0-h,y0-h,x1+h,y1+h];}
   bbCache.set(it,b);return b;}
 function hitItem(p,it,x,y,r){const b=bboxOf(p,it);if(x<b[0]-r||x>b[2]+r||y<b[1]-r||y>b[3]+r)return false;if(it.kind==='text'||it.kind==='image')return true;
+  if(it.kind==='shape'){const o=shapeOutline(it),n=o.length/2,rr=r+it.w/2,cl=shapeClosed(it);if(cl&&it.fill&&inPoly(x,y,o))return true;
+    for(let i=0;i<(cl?n:n-1);i++){const j=(i+1)%n;if(segDist(x,y,o[i*2],o[i*2+1],o[j*2],o[j*2+1])<=rr)return true;}return false;}
   const pts=it.pts,n=pts.length/3,rr=r+it.w/2;if(n===1)return Math.hypot(pts[0]-x,pts[1]-y)<=rr;
   for(let i=0;i<n-1;i++)if(segDist(x,y,pts[i*3],pts[i*3+1],pts[i*3+3],pts[i*3+4])<=rr)return true;return false;}
 
@@ -864,6 +960,8 @@ function itemNode(p,it){
     t.setAttribute('font-size',it.size);t.setAttribute('fill',it.color);t.setAttribute('font-family','Helvetica, Arial, sans-serif');t.style.whiteSpace='pre';
     it.text.split('\n').forEach((l,k)=>{const s=document.createElementNS(NS,'tspan');s.setAttribute('x',0);s.setAttribute('y',r2(it.size*.9+k*it.size*1.2));s.textContent=l||' ';t.append(s);});return t;}
   const n=document.createElementNS(NS,'path');n.dataset.t='';
+  if(it.kind==='shape'){n.setAttribute('d',svgD(shapeSegs(it)));const f=shapeClosed(it)&&it.fill;n.setAttribute('fill',f||'none');if(f&&(it.fop==null?.3:it.fop)<1)n.setAttribute('fill-opacity',it.fop==null?.3:it.fop);
+    n.setAttribute('stroke',it.color);n.setAttribute('stroke-width',it.w);n.setAttribute('stroke-linecap','round');n.setAttribute('stroke-linejoin','round');if(it.op<1)n.setAttribute('stroke-opacity',it.op);return n;}
   if(TOOLS[it.tool]&&TOOLS[it.tool].press){n.setAttribute('d',svgD(polySegs(outlinePoly(it.pts,it.w))));n.setAttribute('fill',it.color);if(it.op<1)n.setAttribute('fill-opacity',it.op);}
   else{n.setAttribute('d',svgD(monoSegs(it)));n.setAttribute('fill','none');n.setAttribute('stroke',it.color);n.setAttribute('stroke-width',it.w);n.setAttribute('stroke-linecap','round');n.setAttribute('stroke-linejoin','round');if(it.op<1)n.setAttribute('stroke-opacity',it.op);}
   return n;}
@@ -896,16 +994,18 @@ async function saveClick(){await exportPdf();}
 /* ---------- selezione (lazo): segue la forma dei tratti, come in Anteprima ---------- */
 const selmenu=document.createElement('div');selmenu.className='selmenu';
 selmenu.innerHTML='<button data-s="del">Elimina</button><button data-s="dup">Duplica</button>';
-function clearSel(){if(!S.sel)return;const p=S.pages[S.sel.pg];if(p){p.gSel.textContent='';p.gG.textContent='';p.gG.removeAttribute('transform');}S.sel=null;selmenu.remove();renderDock();}
+function clearSel(){spop.hidden=true;if(!S.sel)return;const p=S.pages[S.sel.pg];if(p){p.gSel.textContent='';p.gG.textContent='';p.gG.removeAttribute('transform');}S.sel=null;selmenu.remove();renderDock();}
 function glowNode(p,it){const k=1/S.scale;
   if(it.kind==='text'||it.kind==='image'){const b=bboxOf(p,it),pad=3*k,r=document.createElementNS(NS,'rect');r.setAttribute('x',b[0]-pad);r.setAttribute('y',b[1]-pad);r.setAttribute('width',b[2]-b[0]+2*pad);r.setAttribute('height',b[3]-b[1]+2*pad);r.setAttribute('rx',3*k);r.setAttribute('class','glow-t');return r;}
+  if(it.kind==='shape'){const n=document.createElementNS(NS,'path');n.setAttribute('d',svgD(shapeSegs(it)));n.setAttribute('fill','none');n.setAttribute('stroke','#0a84ff');n.setAttribute('stroke-width',it.w+7*k);
+    n.setAttribute('stroke-linecap','round');n.setAttribute('stroke-linejoin','round');n.setAttribute('class','glow');return n;}
   const press=TOOLS[it.tool]&&TOOLS[it.tool].press,n=document.createElementNS(NS,'path');
   n.setAttribute('d',press?svgD(polySegs(outlinePoly(it.pts,it.w))):svgD(monoSegs(it)));
   n.setAttribute('fill',press?'#0a84ff':'none');n.setAttribute('stroke','#0a84ff');n.setAttribute('stroke-width',press?7*k:it.w+7*k);
   n.setAttribute('stroke-linecap','round');n.setAttribute('stroke-linejoin','round');n.setAttribute('class','glow');return n;}
 function drawSel(){if(!S.sel)return;const p=S.pages[S.sel.pg];p.gSel.textContent='';p.gG.textContent='';p.gG.removeAttribute('transform');
   const items=(S.ann[p.i]||[]).filter(it=>S.sel.ids.has(it.id));if(!items.length){S.sel=null;selmenu.remove();return;}
-  selmenu.innerHTML=(items.every(it=>it.kind==='text')?'<button data-s="tdn" aria-label="Testo più piccolo">A−</button><button data-s="tup" aria-label="Testo più grande">A+</button>':'')+(items.length===1&&items[0].kind==='image'?'<button data-s="crop">Ritaglia</button>':'')+'<button data-s="del">Elimina</button><button data-s="dup">Duplica</button>';
+  selmenu.innerHTML=(items.every(it=>it.kind==='text')?'<button data-s="tdn" aria-label="Testo più piccolo">A−</button><button data-s="tup" aria-label="Testo più grande">A+</button>':'')+(items.length===1&&items[0].kind==='image'?'<button data-s="crop">Ritaglia</button>':'')+(items.some(it=>it.kind==='shape')?'<button data-s="style">Stile</button>':'')+'<button data-s="del">Elimina</button><button data-s="dup">Duplica</button>';
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const it of items){const b=bboxOf(p,it);x0=Math.min(x0,b[0]);y0=Math.min(y0,b[1]);x1=Math.max(x1,b[2]);y1=Math.max(y1,b[3]);}
   S.sel.bb=[x0,y0,x1,y1];for(const it of items)p.gG.append(glowNode(p,it));
   S.sel.handles=null;if(items.length===1&&items[0].kind==='image')drawHandles(p,items[0]);
@@ -916,16 +1016,47 @@ function selHit(p,pt){const s=S.sel;if(!s||s.pg!==p.i)return false;if(s.poly&&in
   const r=12/S.scale;return(S.ann[p.i]||[]).some(it=>s.ids.has(it.id)&&hitItem(p,it,pt[0],pt[1],r));}
 function selectIn(p,poly){const items=S.ann[p.i]||[],ids=new Set();
   for(const it of items){if(it.kind==='text'||it.kind==='image'){const b=bboxOf(p,it);if(inPoly((b[0]+b[2])/2,(b[1]+b[3])/2,poly))ids.add(it.id);continue;}
+    if(it.kind==='shape'){const q=evenXY(shapeOutline(it),40,shapeClosed(it))||[];let ins=0;for(let i=0;i<q.length;i+=2)if(inPoly(q[i],q[i+1],poly))ins++;if(q.length&&ins/(q.length/2)>=.5)ids.add(it.id);continue;}
     const pts=it.pts,n=pts.length/3,step=Math.max(1,Math.floor(n/200));let tot=0,ins=0;for(let i=0;i<n;i+=step){tot++;if(inPoly(pts[i*3],pts[i*3+1],poly))ins++;}if(tot&&ins/tot>=.5)ids.add(it.id);}
   if(ids.size){S.sel={pg:p.i,ids,poly:poly.slice()};drawSel();}renderDock();}
 const shiftPoly=(q,dx,dy)=>q?q.map((v,i)=>i%2?v+dy:v+dx):null;
-function shiftItem(it,dx,dy){if(it.kind==='text'||it.kind==='image')return Object.assign({},it,{x:r2(it.x+dx),y:r2(it.y+dy)});return Object.assign({},it,{pts:it.pts.map((v,i)=>i%3===0?r2(v+dx):i%3===1?r2(v+dy):v)});}
+function shiftItem(it,dx,dy){if(it.kind==='text'||it.kind==='image')return Object.assign({},it,{x:r2(it.x+dx),y:r2(it.y+dy)});
+  if(it.kind==='shape')return it.e?Object.assign({},it,{e:[r2(it.e[0]+dx),r2(it.e[1]+dy),it.e[2],it.e[3],it.e[4]]}):Object.assign({},it,{v:it.v.map((v,i)=>r2(v+(i%2?dy:dx)))});return Object.assign({},it,{pts:it.pts.map((v,i)=>i%3===0?r2(v+dx):i%3===1?r2(v+dy):v)});}
 function delSel(){if(!S.sel)return;const p=S.pages[S.sel.pg],ids=S.sel.ids;setItems(p.i,(S.ann[p.i]||[]).filter(it=>!ids.has(it.id)));clearSel();renderInk(p);}
 function dupSel(){if(!S.sel)return;const p=S.pages[S.sel.pg];const d=[p.inv[0]*14+p.inv[2]*14,p.inv[1]*14+p.inv[3]*14];const ids=new Set();
   const copies=(S.ann[p.i]||[]).filter(it=>S.sel.ids.has(it.id)).map(it=>{const c=shiftItem(it,d[0],d[1]);c.id=uid();ids.add(c.id);return c;});
   setItems(p.i,[...(S.ann[p.i]||[]),...copies]);S.sel={pg:p.i,ids,poly:shiftPoly(S.sel.poly,d[0],d[1])};renderInk(p);}
 function recolorSel(c){const p=S.pages[S.sel.pg];setItems(p.i,(S.ann[p.i]||[]).map(it=>S.sel.ids.has(it.id)&&it.kind!=='image'?Object.assign({},it,{color:c}):it));renderInk(p);}
-selmenu.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.s;if(a==='del')delSel();else if(a==='dup')dupSel();else if(a==='tup'||a==='tdn')resizeSelText(a==='tup'?1:-1);else if(a==='crop')openCrop();});
+selmenu.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.s;if(a==='del')delSel();else if(a==='dup')dupSel();else if(a==='tup'||a==='tdn')resizeSelText(a==='tup'?1:-1);else if(a==='crop')openCrop();else if(a==='style'){if(spop.hidden)openSpop();else spop.hidden=true;}});
+/* forme selezionate: colore del bordo, riempimento, spessore */
+const spop=document.createElement('div');spop.className='pop spop';spop.hidden=true;document.body.append(spop);
+const SHW=[.6,1.2,2,3,4.5];
+function selShapes(){if(!S.sel)return[];return(S.ann[S.sel.pg]||[]).filter(it=>S.sel.ids.has(it.id)&&it.kind==='shape');}
+function openSpop(){const sh=selShapes();if(!sh.length){spop.hidden=true;return;}const f=sh[0],closed=sh.some(shapeClosed),hl=sh.every(q=>q.tool==='hl');
+  const W=hl?TOOLS.hl.widths:SHW;let wi=0;W.forEach((w,k)=>{if(Math.abs(w-f.w)<Math.abs(W[wi]-f.w))wi=k;});
+  const cols=PALETTE.concat(PALETTE.includes(S.custom)?[]:[S.custom]),fop=f.fop==null?.3:f.fop;
+  const dot=(at,c,on)=>`<button class="sdot${on?' on':''}" data-${at}="${c}" style="--c:${c}" aria-label="Colore ${c}"></button>`;
+  let h=`<div class="plabel">Bordo</div><div class="srow">${cols.map(c=>dot('sc',c,c===f.color)).join('')}</div>`;
+  if(closed){const ff=sh.find(q=>shapeClosed(q))||f;h+=`<div class="plabel">Riempimento</div><div class="srow"><button class="sdot none${ff.fill?'':' on'}" data-sf="" aria-label="Nessun riempimento"></button>${cols.map(c=>dot('sf',c,c===ff.fill)).join('')}</div>`;
+    if(ff.fill)h+=`<div class="orow"><input type="range" id="sfop" min="10" max="100" value="${Math.round((ff.fop==null?.3:ff.fop)*100)}" style="--c:${ff.fill}" aria-label="Opacità del riempimento"></div>`;}
+  h+=`<div class="plabel">Spessore</div><div class="wrow">${W.map((w,k)=>`<button class="wopt${k===wi?' on':''}" data-sw="${k}" aria-label="Spessore ${k+1}"><svg viewBox="0 0 36 28"><path d="M6 14H30" fill="none" stroke="currentColor" stroke-width="${[1.4,2.3,3.4,4.6,6.2][k]}" stroke-linecap="round"/></svg></button>`).join('')}</div>`;
+  spop.innerHTML=h;spop.dataset.hl=hl?'1':'';spop.hidden=false;placeSpop();}
+/* il pannello si mette accanto alla selezione, così la forma resta visibile mentre la modifichi */
+function placeSpop(){const pw=spop.offsetWidth,ph=spop.offsetHeight,W=innerWidth,H=innerHeight,g=12;const p=S.sel&&S.pages[S.sel.pg];
+  const r=p&&p.gG.firstChild?p.gG.getBoundingClientRect():(selmenu.isConnected?selmenu.getBoundingClientRect():{left:W/2,right:W/2,top:H/2,bottom:H/2});
+  const cy=clamp((r.top+r.bottom)/2-ph/2,8,Math.max(8,H-ph-8)),cx=clamp((r.left+r.right)/2-pw/2,8,Math.max(8,W-pw-8));let x,y;
+  if(r.right+g+pw<=W-8){x=r.right+g;y=cy;}else if(r.left-g-pw>=8){x=r.left-g-pw;y=cy;}
+  else if(r.bottom+g+ph<=H-8){x=cx;y=r.bottom+g;}else if(r.top-g-ph-52>=8){x=cx;y=r.top-g-ph-52;}else{x=cx;y=Math.max(8,H-ph-8);}
+  spop.style.left=x+'px';spop.style.top=y+'px';}
+function patchShapes(fn){if(!S.sel)return;const p=S.pages[S.sel.pg];setItems(p.i,(S.ann[p.i]||[]).map(it=>S.sel.ids.has(it.id)&&it.kind==='shape'?fn(it):it));renderInk(p);openSpop();}
+spop.addEventListener('mousedown',e=>{if(!e.target.closest('input'))e.preventDefault();});
+spop.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.sc!=null){const c=b.dataset.sc;patchShapes(it=>Object.assign({},it,{color:c}));}
+  else if(b.dataset.sf!=null){const c=b.dataset.sf||null;patchShapes(it=>shapeClosed(it)?Object.assign({},it,{fill:c,fop:it.fop==null?.3:it.fop}):it);}
+  else if(b.dataset.sw!=null){const W=spop.dataset.hl?TOOLS.hl.widths:SHW,w=W[+b.dataset.sw];patchShapes(it=>Object.assign({},it,{w}));}});
+spop.addEventListener('input',e=>{if(e.target.id!=='sfop'||!S.sel)return;const p=S.pages[S.sel.pg],v=+e.target.value/100;for(const it of selShapes()){const n=p.nodes.get(it.id);if(n&&it.fill)n.setAttribute('fill-opacity',v);}});
+spop.addEventListener('change',e=>{if(e.target.id!=='sfop')return;const v=r2(+e.target.value/100);patchShapes(it=>it.fill?Object.assign({},it,{fop:v}):it);});
+
 /* immagine: 4 maniglie agli angoli (proporzionali) e 4 sui lati (allungano un solo lato) */
 const HPOS=[[0,0],[1,0],[0,1],[1,1],[.5,0],[.5,1],[0,.5],[1,.5]];
 function imgPt(p,it,lx,ly){const[a,b,c,d]=p.vt;return[it.x+a*lx+b*ly,it.y+c*lx+d*ly];}
@@ -1030,9 +1161,16 @@ function toUser(p,cx,cy){return apply(p.inv,(cx-p.rect.left)/S.scale,(cy-p.rect.
 const pressureOf=e=>e.pointerType==='pen'?(e.pressure>0?e.pressure:.5):.5;
 let A=null,liveRaf=0;
 const hlEps=w=>Math.max(.12,w*.04);
-function liveD(a){if(a.kind==='line')return svgD(centerSegs([a.pts[0],a.pts[1],.5,a.end[0],a.end[1],.5]));return a.press?svgD(polySegs(outlinePoly(a.pts,a.w))):svgD(a.snap?lineSegs(a.pts):a.tool==='hl'?hlSegs(simplify(a.pts,hlEps(a.w))):fineSegs(a.pts,a.w));}
+function liveD(a){if(a.shape)return svgD(shapeSegs(a.shape));if(a.kind==='line')return svgD(centerSegs([a.pts[0],a.pts[1],.5,a.end[0],a.end[1],.5]));return a.press?svgD(polySegs(outlinePoly(a.pts,a.w))):svgD(a.snap?lineSegs(a.pts):a.tool==='hl'?hlSegs(simplify(a.pts,hlEps(a.w))):fineSegs(a.pts,a.w));}
 function liveFlush(){liveRaf=0;if(A&&A.node)A.node.setAttribute('d',liveD(A));}
 function liveSched(){if(!liveRaf)liveRaf=requestAnimationFrame(liveFlush);}
+/* forme: penna ferma per 0,7 s alla fine del tratto, il tratto diventa linea, rettangolo, triangolo o ellisse */
+const HOLD_MS=700;
+function armHold(a){clearTimeout(a.holdT);if(S.shapes&&!a.snap&&!a.shape)a.holdT=setTimeout(()=>holdFire(a),HOLD_MS);}
+function holdFire(a){if(A!==a||a.kind!=='draw'||a.shape||a.snap||a.suspended||!S.shapes)return;
+  let sh=null;try{sh=recognize(a.pts,S.scale,a.tool==='hl');}catch(err){logErr('riconoscimento forma',err);}if(!sh)return;
+  const T=TOOLS[a.tool];a.shape=Object.assign({kind:'shape',tool:a.tool,color:a.color,op:a.op,w:r2(T.press?a.w*PW(.5):a.w),fill:null,fop:.3},sh);
+  const n=itemNode(a.p,a.shape);n.classList.add('snapin');a.node.replaceWith(n);a.node=n;}
 function liveOn(p,mul){p.lv.classList.add('act');p.lv.classList.toggle('mul',!!mul);}
 function liveOff(p){if(liveRaf){cancelAnimationFrame(liveRaf);liveRaf=0;}p.gL.textContent='';p.lv.classList.remove('act','mul');}
 function guide(p,tag,cls){const n=document.createElementNS(NS,tag);n.setAttribute('class',cls);p.gL.append(n);return n;}
@@ -1084,10 +1222,11 @@ function onDown(e){if(S.tsel)return;dropStaleA();lastPtrT=performance.now();
   if(T.kind==='ink'){if(S.sel)clearSel();const w=T.widths[cfg.wi],pr=pressureOf(e);
     A={kind:'draw',tool,p,w,color:cfg.color,op:cfg.op,press:!!T.press,pts:[pt[0],pt[1],pr],lx:e.clientX,ly:e.clientY,id:e.pointerId,end:pt};
     const sn=RU.on&&rulerEdge(e.clientX,e.clientY);if(sn){A.snap=sn;A.snapW=w*S.scale*(T.press?PW(.5):1);const q=snapPt(A,e.clientX,e.clientY);A.pts=[q[0],q[1],.5];}
-    liveOn(p,tool==='hl');A.node=itemNode(p,{kind:'stroke',tool,color:cfg.color,w,op:cfg.op,pts:A.pts});p.gL.append(A.node);return;}
+    liveOn(p,tool==='hl');A.node=itemNode(p,{kind:'stroke',tool,color:cfg.color,w,op:cfg.op,pts:A.pts});p.gL.append(A.node);
+    if(!A.snap){A.hold={x:e.clientX,y:e.clientY};armHold(A);}return;}
   if(tool==='eraser'){if(S.sel)clearSel();liveOn(p);A={kind:'erase',p,r:T.widths[cfg.wi],removed:new Set(),id:e.pointerId,pixel:cfg.mode==='pixel',items:(S.ann[p.i]||[]).slice(),changed:false};
     A.ring=guide(p,'circle','ring');A.ring.setAttribute('r',A.r);A.ring.setAttribute('cx',pt[0]);A.ring.setAttribute('cy',pt[1]);eraseAt(pt);return;}
-  if(tool==='lasso'){
+  if(tool==='lasso'){spop.hidden=true;
     const H=hitHandle(p,pt);
     if(H){const it=(S.ann[p.i]||[]).find(q=>S.sel.ids.has(q.id));if(it){A={kind:'resize',p,it,h:H,nit:it,id:e.pointerId};selmenu.remove();p.gG.textContent='';return;}}
     if(selHit(p,pt)){A={kind:'move',p,start:pt,dx:0,dy:0,id:e.pointerId};selmenu.remove();return;}
@@ -1097,13 +1236,17 @@ function onMove(e){if(!A||e.pointerId!==A.id)return;lastPtrT=performance.now();
   e.preventDefault();
   let evs=e.getCoalescedEvents?e.getCoalescedEvents():null;if(!evs||!evs.length)evs=[e];
   const p=A.p;
+  if(A.kind==='draw'&&A.shape){if(A.shape.type==='line'){const q=toUser(p,e.clientX,e.clientY),v=A.shape.v,dx=q[0]-v[0],dy=q[1]-v[1],l=Math.hypot(dx,dy),an=snapAng(Math.atan2(dy,dx),Math.PI/4,.07);
+      A.shape=Object.assign({},A.shape,{v:[v[0],v[1],v[0]+Math.cos(an)*l,v[1]+Math.sin(an)*l]});liveSched();}return;}
   if(A.kind==='draw'&&A.snap){const q=snapPt(A,e.clientX,e.clientY);A.pts=[A.pts[0],A.pts[1],.5,q[0],q[1],.5];liveSched();return;}
   if(A.kind==='draw'){for(const ev of evs){const dx=ev.clientX-A.lx,dy=ev.clientY-A.ly,dd=dx*dx+dy*dy;if(dd<.64)continue;
       if(A.dx!==undefined&&dd<9&&dx*A.dx+dy*A.dy<0)continue;
       const dl=Math.sqrt(dd);A.dx=A.dx===undefined?dx/dl:A.dx*.6+dx/dl*.4;A.dy=A.dy===undefined?dy/dl:A.dy*.6+dy/dl*.4;A.lx=ev.clientX;A.ly=ev.clientY;
       const pt=toUser(p,ev.clientX,ev.clientY);A.raw=[pt[0],pt[1],pressureOf(ev)];
       /* stabilizzatore: il punto registrato segue la Pencil con un filtro leggero, il tratto risulta liscio senza ritardo visibile */
-      const n=A.pts.length,fx=A.pts[n-3]+(pt[0]-A.pts[n-3])*.8,fy=A.pts[n-2]+(pt[1]-A.pts[n-2])*.8;A.pts.push(fx,fy,A.raw[2]);}liveSched();return;}
+      const n=A.pts.length,fx=A.pts[n-3]+(pt[0]-A.pts[n-3])*.8,fy=A.pts[n-2]+(pt[1]-A.pts[n-2])*.8;A.pts.push(fx,fy,A.raw[2]);}
+    if(A.hold){const hx=e.clientX-A.hold.x,hy=e.clientY-A.hold.y;if(hx*hx+hy*hy>16){A.hold.x=e.clientX;A.hold.y=e.clientY;armHold(A);}}
+    liveSched();return;}
   const pt=toUser(p,e.clientX,e.clientY);
   if(A.kind==='line'){A.end=pt;liveSched();return;}
   if(A.kind==='erase'){for(const ev of evs)eraseAt(toUser(p,ev.clientX,ev.clientY));A.ring.setAttribute('cx',pt[0]);A.ring.setAttribute('cy',pt[1]);return;}
@@ -1117,7 +1260,7 @@ function eraseAt(pt){const p=A.p;
   if(A.pixel){const out=[];let hit=false;
     for(const it of A.items){if(it.kind==='image'||!hitItem(p,it,pt[0],pt[1],A.r)){out.push(it);continue;}
       hit=true;const old=p.nodes.get(it.id);if(old){old.remove();p.nodes.delete(it.id);}
-      if(it.kind==='text')continue;for(const pc of cutStroke(it,pt[0],pt[1],A.r)){out.push(pc);appendNode(p,pc);}}
+      if(it.kind==='text')continue;for(const pc of cutStroke(it.kind==='shape'?shapeStroke(it):it,pt[0],pt[1],A.r)){out.push(pc);appendNode(p,pc);}}
     if(hit){A.items=out;A.changed=true;}return;}
   for(const it of(S.ann[p.i]||[])){if(A.removed.has(it.id)||it.kind==='image')continue;if(hitItem(p,it,pt[0],pt[1],A.r)){A.removed.add(it.id);const n=p.nodes.get(it.id);if(n)n.style.display='none';}}}
 /* gomma pixel: taglia il tratto dove passa la gomma e tiene i pezzi rimasti */
@@ -1127,7 +1270,8 @@ function cutStroke(it,x,y,r){const src=it.pts,n=src.length/3,step=Math.max(.25,M
   const pieces=[];let cur=[];for(let i=0;i<pts.length;i+=3){if(Math.hypot(pts[i]-x,pts[i+1]-y)<=rr){if(cur.length>=6)pieces.push(cur);cur=[];}else cur.push(pts[i],pts[i+1],pts[i+2]);}
   if(cur.length>=6)pieces.push(cur);
   const press=TOOLS[it.tool]&&TOOLS[it.tool].press;return pieces.map(pc=>Object.assign({},it,{id:uid(),pts:simplify(pc,press?.04:.08)}));}
-function onUp(e){if(!A||e.pointerId!==A.id)return;const a=A;A=null;const p=a.p;
+function onUp(e){if(!A||e.pointerId!==A.id)return;const a=A;A=null;const p=a.p;clearTimeout(a.holdT);
+  if(a.kind==='draw'&&a.shape){const it=roundShape(a.shape);it.id=uid();addItem(p,it);liveOff(p);return;}
   if(a.kind==='tap'){if(e.type==='pointercancel'||(a.touch&&(TOUCH.palm||PALM.penDown)))return;if(Math.hypot(e.clientX-a.x,e.clientY-a.y)>10)return;p.rect=p.el.getBoundingClientRect();
     const pt=toUser(p,e.clientX,e.clientY);const hit=hitText(p,pt[0],pt[1]);
     if(hit)startText(p,hit);else{const sz=textSize();startText(p,null,toUser(p,e.clientX-2,e.clientY-sz*S.scale*.62));}return;}
@@ -1185,6 +1329,22 @@ function addInk(doc,page,it){const{PDFName,PDFString}=PDFLib;const ctx=doc.conte
   const an=ctx.obj({Type:'Annot',Subtype:'Ink',Rect:rect,InkList:[ink],C:[r,g,b],CA:r2(ca),BS:{Type:'Border',W:bw,S:'S'},F:4,AP:{N:ap}});
   an.set(PDFName.of('NM'),PDFString.of('margine-'+it.id));an.set(PDFName.of('MargineData'),ctx.register(ctx.flateStream(JSON.stringify(Object.assign({},it,{id:undefined})).replace(/[\u007f-\uffff]/g,c=>'\\u'+c.charCodeAt(0).toString(16).padStart(4,'0')))));an.set(PDFName.of('M'),PDFString.of(pdfDate()));an.set(PDFName.of('T'),PDFString.of('Margine'));an.set(PDFName.of('P'),page.ref);
   page.node.addAnnot(ctx.register(an));}
+function addShape(doc,page,it){const{PDFName,PDFString}=PDFLib;const ctx=doc.context;const[r,g,b]=hex2rgb(it.color);const segs=shapeSegs(it),o=shapeOutline(it);
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(let i=0;i<o.length;i+=2){x0=Math.min(x0,o[i]);x1=Math.max(x1,o[i]);y0=Math.min(y0,o[i+1]);y1=Math.max(y1,o[i+1]);}
+  const m=it.w/2+1,rect=[x0-m,y0-m,x1+m,y1+m].map(r2),fill=shapeClosed(it)&&it.fill,fop=it.fop==null?.3:it.fop,op=it.op||1;
+  /* l'opacità generale (CA) vale per tutta l'annotazione: il riempimento la compensa nel proprio stato grafico */
+  const gs={Type:'ExtGState',CA:1,ca:r2(clamp(fop/op,0,1))};if(it.tool==='hl')gs.BM='Multiply';
+  let c='/GS0 gs\n',fc=null;if(fill){fc=hex2rgb(it.fill);c+=`${fc[0]} ${fc[1]} ${fc[2]} rg\n${pdfOps(segs)}\nf\n`;}
+  c+=`${r} ${g} ${b} RG ${fx(it.w)} w 1 J 1 j\n${pdfOps(segs)}\nS\n`;
+  const ap=ctx.register(ctx.flateStream(c,{Type:'XObject',Subtype:'Form',FormType:1,BBox:rect,Resources:{ExtGState:{GS0:gs}}}));
+  const axis=a=>Math.abs(Math.sin(2*a))<1e-3;let sub='Polygon';
+  if(it.type==='line')sub='Line';else if(it.type==='ellipse'&&axis(it.e[4]))sub='Circle';else if(it.type==='rect'&&Math.abs(it.v[1]-it.v[3])<.01&&Math.abs(it.v[0]-it.v[6])<.01)sub='Square';
+  const d={Type:'Annot',Subtype:sub,Rect:rect,C:[r,g,b],CA:r2(op),BS:{Type:'Border',W:r2(it.w),S:'S'},F:4,AP:{N:ap}};
+  /* colore interno solo se pieno: chi ridisegna dai dati grezzi non conosce l'opacità del riempimento e coprirebbe il testo */
+  if(fc&&fop>=.99)d.IC=fc;if(sub==='Line')d.L=it.v.map(r2);if(sub==='Polygon')d.Vertices=o.map(r2);if(sub==='Square'||sub==='Circle')d.RD=[1,1,1,1];
+  const an=ctx.obj(d);
+  an.set(PDFName.of('NM'),PDFString.of('margine-'+it.id));an.set(PDFName.of('MargineData'),ctx.register(ctx.flateStream(JSON.stringify(Object.assign({},it,{id:undefined})))));an.set(PDFName.of('M'),PDFString.of(pdfDate()));an.set(PDFName.of('T'),PDFString.of('Margine'));an.set(PDFName.of('P'),page.ref);
+  page.node.addAnnot(ctx.register(an));}
 const ROTLIN={0:[1,0,0,-1],90:[0,1,1,0],180:[-1,0,0,1],270:[0,-1,-1,0]};
 function pageLin(page){const a=((page.getRotation().angle%360)+360)%360;return ROTLIN[a]||ROTLIN[0];}
 async function addImage(doc,page,it){const{PDFName,PDFString}=PDFLib;const ctx=doc.context;
@@ -1218,7 +1378,7 @@ async function buildExport(id,annPages,rot){if(!window.PDFLib)await loadScript(P
   const pages=doc.getPages();for(const[k,deg]of Object.entries(rot||{})){const pg=pages[+k];if(pg&&deg)pg.setRotation(PDFLib.degrees((((pg.getRotation().angle||0)+deg)%360+360)%360));}
   let font=null,charset=null;const entries=Object.entries(annPages||{}).filter(([,v])=>v&&v.length);let done=0;
   for(const[k,items]of entries){const page=pages[+k];if(!page)continue;
-    for(const it of items){if(it.kind==='text'){if(!font){font=await doc.embedFont(PDFLib.StandardFonts.Helvetica);charset=new Set(font.getCharacterSet());}addFreeText(doc,page,null,it,font,charset);}else if(it.kind==='image')await addImage(doc,page,it);else addInk(doc,page,it);}
+    for(const it of items){if(it.kind==='text'){if(!font){font=await doc.embedFont(PDFLib.StandardFonts.Helvetica);charset=new Set(font.getCharacterSet());}addFreeText(doc,page,null,it,font,charset);}else if(it.kind==='image')await addImage(doc,page,it);else if(it.kind==='shape')addShape(doc,page,it);else addInk(doc,page,it);}
     done++;if(done%5===0){busy('Aggiungo le annotazioni',.3+.45*done/entries.length);await tick();}}
   busy('Scrivo il file',.8);await tick(30);
   const out=await doc.save({useObjectStreams:false,addDefaultPage:false,updateFieldAppearances:false});
@@ -1374,7 +1534,8 @@ $('#bSearch').onclick=()=>el.sbar.hidden?openSearch():closeSearch();
 $('#bMore').onclick=e=>{e.stopPropagation();if(!el.menu.hidden){el.menu.hidden=true;return;}el.menu.hidden=false;const r=$('#bMore').getBoundingClientRect();
   el.menu.style.top=(r.bottom+8)+'px';el.menu.style.left=clamp(r.right-el.menu.offsetWidth,8,innerWidth-el.menu.offsetWidth-8)+'px';};
 el.menu.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.act;el.menu.hidden=true;
-  if(a==='zin')setZoom(S.zoom*1.25);else if(a==='zout')setZoom(S.zoom/1.25);else if(a==='fit')setZoom(1);else if(a==='focus')setFocus(true);else if(a==='search')openSearch();else if(a==='close')requestClose();});
+  if(a==='zin')setZoom(S.zoom*1.25);else if(a==='zout')setZoom(S.zoom/1.25);else if(a==='fit')setZoom(1);else if(a==='focus')setFocus(true);else if(a==='search')openSearch();else if(a==='close')requestClose();else if(a==='shapes'){S.shapes=!S.shapes;saveCfg();updShapesChk();toast(S.shapes?'Riconoscimento forme attivo: alla fine del tratto tieni ferma la penna':'Riconoscimento forme disattivato',3200);}});
+function updShapesChk(){$('#shapesChk').textContent=S.shapes?'Attivo':'Spento';$('#shapesChk').classList.toggle('on',!!S.shapes);}
 function setFocus(on){el.reader.classList.toggle('focus',on);S.focus=on;saveCfg();el.menu.hidden=true;
   try{const d=document,de=d.documentElement;
     if(on&&!(d.fullscreenElement||d.webkitFullscreenElement)){const r=(de.requestFullscreen||de.webkitRequestFullscreen);if(r){const pr=r.call(de);if(pr&&pr.catch)pr.catch(()=>{});}}
@@ -1391,7 +1552,7 @@ el.pop.addEventListener('mousedown',e=>{if(!e.target.closest('input'))e.preventD
 el.pop.addEventListener('click',e=>{const m=e.target.closest('[data-m]');if(m){S.cfg.eraser.mode=m.dataset.m;saveCfg();openPop();return;}const b=e.target.closest('.wopt');if(!b)return;S.cfg[S.tool].wi=+b.dataset.k;saveCfg();
   if(S.tool==='text'){const sz=TOOLS.text.widths[+b.dataset.k];S.cfg.text.size=sz;saveCfg();if(S.editing){S.editing.t.size=sz;S.editing.ed.style.fontSize=sz*S.scale+'px';tbarRender();}}openPop();});
 el.pop.addEventListener('input',e=>{if(e.target.id!=='op')return;S.cfg[S.tool].op=+e.target.value/100;saveCfg();});
-document.addEventListener('pointerdown',e=>{if(!el.pop.hidden&&!e.target.closest('#pop,.tool'))closePop();if(!el.menu.hidden&&!e.target.closest('#menu,#bMore'))el.menu.hidden=true;},true);
+document.addEventListener('pointerdown',e=>{if(!spop.hidden&&!e.target.closest('.spop,.selmenu'))spop.hidden=true;if(!el.pop.hidden&&!e.target.closest('#pop,.tool'))closePop();if(!el.menu.hidden&&!e.target.closest('#menu,#bMore'))el.menu.hidden=true;},true);
 el.thumbs.addEventListener('click',e=>{const t=e.target.closest('.thumb');if(t)scrollToPage(+t.dataset.i);});
 
 let qT;el.q.addEventListener('input',()=>{clearTimeout(qT);qT=setTimeout(runSearch,260);});
@@ -1527,6 +1688,7 @@ function setLock(on,quiet){S.lock=!!on;saveCfg();
 $('#bLock').onclick=()=>setLock(!S.lock);$('#bLock2').onclick=()=>setLock(!S.lock);
 let scrollRaf=0;sc.addEventListener('scroll',()=>{if(scrollRaf)return;scrollRaf=requestAnimationFrame(()=>{scrollRaf=0;updateNear();updateCur();lbUpdate();});},{passive:true});
 sc.addEventListener('wheel',e=>{if(!e.ctrlKey)return;e.preventDefault();const r=sc.getBoundingClientRect();setZoom(S.zoom*Math.exp(-e.deltaY*.01),e.clientX-r.left,e.clientY-r.top);},{passive:false});
+sc.addEventListener('scroll',()=>{if(!spop.hidden)spop.hidden=true;},{passive:true});
 sc.addEventListener('pointerdown',onDown);sc.addEventListener('pointermove',onMove);sc.addEventListener('pointerup',onUp);
 ['gesturestart','gesturechange','gestureend'].forEach(t=>sc.addEventListener(t,e=>e.preventDefault()));
 document.addEventListener('gesturestart',e=>e.preventDefault());
@@ -1539,7 +1701,7 @@ document.addEventListener('keydown',e=>{if(!S.doc||CR||S.editing||(e.target.clos
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&S.meta&&S.doc){saveAnnNow();saveMeta(true);}});
 window.addEventListener('pagehide',()=>{if(S.meta&&S.doc){saveAnnNow();}});
 
-loadCfg();buildSwatches();renderDock();renderRecents();setLock(!!S.lock,true);
+loadCfg();updShapesChk();buildSwatches();renderDock();renderRecents();setLock(!!S.lock,true);
 /* la barra centrale scende sotto la barra di destra solo quando si toccherebbero */
 function fbarFullW(){const fb=$('#fbar');let w=15,n=0;for(const c of fb.children){const cs=getComputedStyle(c);if(cs.position==='absolute'||cs.display==='none')continue;w+=c.offsetWidth+parseFloat(cs.marginLeft)+parseFloat(cs.marginRight);n++;}return w+Math.max(0,n-1)*2;}
 function fitFocus(){const r=el.reader;if(!S.focus){r.classList.remove('fstack');return;}
