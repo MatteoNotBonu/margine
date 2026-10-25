@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='0d51a5f';</script>
+<script>window.MARGINE_VER='8457f0e';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -159,7 +159,7 @@ svg{display:block}
   .reader.side{--sidew:132px}.thumb{width:110px}.tbox{width:90px}
   .dock{zoom:.88}
 }
-@media (max-width:740px){
+@media (max-width:800px){
   .reader.focus .top{padding-top:calc(62px + env(safe-area-inset-top,0px))}
   .reader.focus .top .tc{grid-column:1/-1;justify-self:end}
   .reader.focus #lockbar{margin-top:118px}
@@ -176,6 +176,22 @@ svg{display:block}
   .top{grid-template-columns:1fr auto;row-gap:6px}
   .top .tc{grid-column:1/-1;grid-row:2;justify-self:center}
 }
+.textLayer{position:absolute;left:0;top:0;overflow:hidden;line-height:1;-webkit-text-size-adjust:none;text-size-adjust:none;transform-origin:0 0;z-index:5}
+.textLayer span,.textLayer br{color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0% 0%}
+.textLayer span.markedContent{top:0;height:0}
+.textLayer ::selection{background:rgba(10,132,255,.32)}
+.textLayer br::selection{background:transparent}
+.textLayer[data-main-rotation="90"]{transform:rotate(90deg) translateY(-100%)}
+.textLayer[data-main-rotation="180"]{transform:rotate(180deg) translate(-100%,-100%)}
+.textLayer[data-main-rotation="270"]{transform:rotate(270deg) translateX(-100%)}
+.reader.tsel .scroller{touch-action:pan-x pan-y}
+.reader.tsel .textLayer,.reader.tsel .textLayer *{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+.tselbar{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:31;display:flex;align-items:center;gap:6px;padding:6px 6px 6px 14px;border-radius:22px;background:var(--dock);color:var(--dock-fg);box-shadow:0 10px 24px rgba(0,0,0,.28);max-width:calc(100% - 24px);white-space:nowrap}
+.tselbar .tsi{display:flex;align-items:center;gap:8px;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.tselbar .tsi svg{flex:none;opacity:.8}
+.tselbar button{height:36px;padding:0 14px;border-radius:18px;font-weight:600;font-size:14px;color:var(--dock-fg);background:var(--dock-2);flex:none}
+.tselbar button:disabled{opacity:.4}
+.tselbar #tsCopy{background:var(--accent);color:#fff}
 .dock.off{transform:translate(-50%,calc(100% + 40px)) scale(.94);opacity:0;visibility:hidden;pointer-events:none;transition:transform .26s cubic-bezier(.5,0,.75,0),opacity .2s ease .06s,visibility 0s .26s}
 .dock.enter .tool svg{animation:toolUp .55s cubic-bezier(.2,1.35,.4,1) both;animation-delay:calc(var(--i)*38ms + 90ms)}
 .dock.enter .dot{animation:dotIn .42s cubic-bezier(.2,1.5,.4,1) both;animation-delay:calc(var(--j)*35ms + 220ms)}
@@ -342,6 +358,7 @@ svg{display:block}
     </div>
     <div class="pill tc">
       <button class="ib on" id="bMarkup" aria-label="Strumenti di annotazione" title="Strumenti di annotazione"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M9.2 16.3 14.6 7.5l1.9 1.2-5.4 8.8-2.3.9z" stroke-linejoin="round"/></svg></button>
+      <button class="ib" id="bTsel" aria-label="Seleziona testo del PDF" title="Seleziona testo del PDF"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5h5M9.5 19h5M12 5v14"/><path d="M3.5 9h3M3.5 12h3M3.5 15h2" opacity=".55"/><path d="M17.5 9h3M17.5 12h3M17.5 15h2" opacity=".55"/></svg></button>
       <button class="ib" id="bAddText" aria-label="Aggiungi casella di testo" title="Aggiungi casella di testo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2.5"/><path d="M6.5 13h.01M9.5 13h.01M12.5 13h.01" stroke-width="2.6"/><path d="m14.6 12.2 6-6a1.35 1.35 0 0 0-1.9-1.9l-6 6-.6 2.5z"/></svg></button>
  <button class="ib" id="bAddImg" aria-label="Aggiungi immagine" title="Aggiungi immagine"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="m3.5 17.5 5-5 4 4 3-3 5 5"/></svg></button>
       <button class="ib" id="bRotate" aria-label="Ruota la pagina" title="Ruota la pagina"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="9" width="11" height="11.5" rx="2"/><path d="M11.5 4.5H15a4 4 0 0 1 4 4V12"/><path d="m16.3 9.6 2.7 2.7 2.7-2.7"/></svg></button>
@@ -400,6 +417,7 @@ svg{display:block}
 
 <div class="busy" id="busy" hidden><div class="busy-card"><div class="spin"></div><p id="busyMsg"></p><div class="bar" id="busyBarW"><i id="busyBar"></i></div></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="tselbar" id="tselbar" hidden><span class="tsi"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5h5M9.5 19h5M12 5v14"/><path d="M3.5 9h3M3.5 12h3M3.5 15h2" opacity=".55"/><path d="M17.5 9h3M17.5 12h3M17.5 15h2" opacity=".55"/></svg><span id="tsInfo">Tieni premuto sul testo per selezionarlo</span></span><button id="tsCopy" disabled>Copia</button><button id="tsDone">Fine</button></div>
 
 <div class="stoast" id="stoast" role="status" aria-live="polite"><span class="ck"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"/></svg></span><span class="stx"><b>Salvato in File</b><span id="stWhen"></span></span></div>
 <div class="busy" id="ready" hidden><div class="busy-card lv-card" role="dialog" aria-modal="true" aria-labelledby="readyT"><b class="lv-t" id="readyT">PDF pronto</b><p id="readyTxt"></p><div class="lv-b"><button class="primary" id="readyGo">Salva in File</button><button class="lv-x" id="readyNo">Annulla</button></div></div></div>
@@ -712,7 +730,7 @@ async function makeDocThumb(gen){try{if(gen!==S.gen||!S.doc||!S.meta)return;cons
   if(gen!==S.gen||DELETED.has(m.id))return;m.thumb=th;await DB.put('docs',m);}catch(e){}}
 function showReader(){el.lib.hidden=true;el.reader.hidden=false;}
 function showLibrary(){if(S.reloadOnLibrary){location.reload();return;}el.reader.hidden=true;el.lib.hidden=false;renderRecents();}
-async function closeDoc(){finishText();closePop();el.menu.hidden=true;await saveAnnNow();saveMeta(true);
+async function closeDoc(){exitTsel();finishText();closePop();el.menu.hidden=true;await saveAnnNow();saveMeta(true);
   S.gen++;for(const p of S.pages){if(p.task)try{p.task.cancel();}catch(e){}if(p.canvas){p.canvas.width=p.canvas.height=0;}}
   el.pages.textContent='';el.thumbs.textContent='';for(const u of Object.values(S.thumbUrl))URL.revokeObjectURL(u);S.thumbUrl={};S.thumbVis.clear();
   try{S.doc&&S.doc.destroy();}catch(e){}
@@ -741,13 +759,13 @@ function padX(){return el.scroller.clientWidth<600?6:PADX;}
 function layout(){if(!S.pages.length)return;const sc=el.scroller,px=padX();el.pages.style.setProperty('--padx',px+'px');const avail=Math.max(160,sc.clientWidth-px*2);
   S.scale=avail/S.maxW1*S.zoom;let y=PADT,mw=0;
   for(const p of S.pages){p.w=p.w1*S.scale;p.h=p.h1*S.scale;p.top=y;y+=p.h+14;p.el.style.width=p.w+'px';p.el.style.height=p.h+'px';if(p.w>mw)mw=p.w;}
-  el.pages.style.width=(mw+px*2)+'px';if(S.sel)drawSel();$('#zl').textContent=Math.round(S.zoom*100)+'%';}
+  el.pages.style.width=(mw+px*2)+'px';for(const q of TL)q.tl.style.setProperty('--scale-factor',S.scale);if(S.sel)drawSel();$('#zl').textContent=Math.round(S.zoom*100)+'%';}
 function findPage(y){const P=S.pages;let a=0,b=P.length-1;while(a<b){const m=(a+b)>>1;if(P[m].top+P[m].h<y)a=m+1;else b=m;}return a;}
 function pageLeft(p){return(el.pages.offsetWidth-p.w)/2;}
 function updateNear(){if(!S.pages.length)return;const st=el.scroller.scrollTop,vh=el.scroller.clientHeight,lo=st-vh*.6,hi=st+vh*1.6,near=new Set();
   for(let i=findPage(lo);i<S.pages.length;i++){const p=S.pages[i];if(p.top>hi)break;near.add(i);}S.near=near;pump();}
 function needsRender(p){return!p.failed&&(!p.canvas||Math.abs(p.rs-S.scale)/S.scale>.12);}
-function unrender(p){if(p.task){try{p.task.cancel();}catch(e){}p.task=null;}
+function unrender(p){dropTextLayer(p);if(p.task){try{p.task.cancel();}catch(e){}p.task=null;}
   if(p.canvas){p.canvas.width=p.canvas.height=0;p.canvas.remove();p.canvas=null;p.rs=0;p.el.classList.remove('ready');
     S.doc&&S.doc.getPage(p.i+1).then(x=>x.cleanup()).catch(()=>{});}}
 function evict(){const mid=el.scroller.scrollTop+el.scroller.clientHeight/2;
@@ -964,7 +982,7 @@ function rulerTouch(e){if(!RU.on)return false;const ts=rulerTouches(e);
 let lastPtrT=0;
 function dropStaleA(){if(!A||A.suspended||performance.now()-lastPtrT<2000)return;const a=A;
   if(a.kind==='tap'){A=null;return;}try{onUp({pointerId:a.id,type:'pointerup',clientX:a.x||0,clientY:a.y||0});}catch(_){A=null;}if(A===a)A=null;logErr('tratto senza fine chiuso',a.kind);}
-function onDown(e){dropStaleA();lastPtrT=performance.now();
+function onDown(e){if(S.tsel)return;dropStaleA();lastPtrT=performance.now();
   if(e.target.closest('.tedit,.selmenu,.tbar'))return;
   if(S.editing){finishText();if(e.pointerType==='touch'||S.tool!=='text')return;}
   if(A&&A.suspended)finishSuspended();
@@ -1213,15 +1231,42 @@ $('#bSide').onclick=()=>{el.reader.classList.toggle('side');$('#bSide').classLis
 let dockT;function showDock(on){clearTimeout(dockT);const d=el.dock;
   if(on){d.classList.remove('off');d.classList.remove('enter');void d.offsetWidth;d.classList.add('enter');dockT=setTimeout(()=>d.classList.remove('enter'),1100);}
   else{d.classList.remove('enter');d.classList.add('off');}}
-$('#bMarkup').onclick=()=>{S.markup=!S.markup;finishText();clearSel();closePop();showDock(S.markup);$('#bMarkup').classList.toggle('on',S.markup);};
+/* ---------- selezione del testo del PDF (strumento su richiesta) ---------- */
+const TL=new Set();
+function dropTextLayer(p){if(p&&p.tl){p.tl.remove();p.tl=null;TL.delete(p);}}
+async function buildTextLayer(p){if(!p||!S.doc||!S.tsel||p.tl||p.tlBusy)return;p.tlBusy=true;const gen=S.gen;
+  try{const pp=await S.doc.getPage(p.i+1);const tc=await pp.getTextContent();if(gen!==S.gen||!S.tsel)return;
+    const vp=pp.getViewport({scale:S.scale,rotation:rotOf(p.i,pp)});const div=document.createElement('div');div.className='textLayer';div.style.setProperty('--scale-factor',S.scale);p.el.append(div);
+    await pdfjsLib.renderTextLayer({textContentSource:tc,container:div,viewport:vp,textDivs:[]}).promise;
+    if(gen!==S.gen||!S.tsel){div.remove();return;}
+    p.tl=div;TL.add(p);
+    if(TL.size>2){const sel=getSelection();const keep=q=>sel.rangeCount&&q.tl.contains(sel.anchorNode);const far=[...TL].filter(q=>q!==p&&!keep(q)).sort((a,b)=>Math.abs(b.i-p.i)-Math.abs(a.i-p.i))[0];dropTextLayer(far);}
+    if(!tc.items.some(it=>it.str&&it.str.trim()))toast('In questa pagina non c’è testo selezionabile (forse è una scansione)',3500);
+  }catch(e){logErr('strato di testo',e);}finally{p.tlBusy=false;}}
+function enterTsel(){if(!S.pages.length||S.tsel)return;finishText();clearSel();closePop();el.menu.hidden=true;stopMom();
+  S.tsel=true;el.reader.classList.add('tsel');$('#bTsel').classList.add('on');showDock(false);$('#tselbar').hidden=false;tselInfo();
+  buildTextLayer(S.pages[findPage(sc.scrollTop+sc.clientHeight*.4)]);}
+function exitTsel(){if(!S.tsel)return;S.tsel=false;el.reader.classList.remove('tsel');$('#bTsel').classList.remove('on');$('#tselbar').hidden=true;
+  try{getSelection().removeAllRanges();}catch(_){}for(const p of[...TL])dropTextLayer(p);TOUCH.f.clear();TOUCH.pan=TOUCH.pinch=null;TOUCH.palm=false;
+  if(S.markup)showDock(true);}
+function tselText(){try{const s=getSelection();if(!s.rangeCount||s.isCollapsed)return'';const n=s.anchorNode,el_=n&&(n.nodeType===3?n.parentNode:n);return el_&&el_.closest&&el_.closest('.textLayer')?s.toString():'';}catch(_){return'';}}
+function tselInfo(){if(!S.tsel)return;const t=tselText().replace(/\s+/g,' ').trim();const w=t?t.split(' ').length:0;
+  $('#tsInfo').textContent=t?`${w===1?'1 parola selezionata':w+' parole selezionate'}`:'Tieni premuto sul testo per selezionarlo';$('#tsCopy').disabled=!t;}
+document.addEventListener('selectionchange',tselInfo);
+$('#bTsel').onclick=()=>S.tsel?exitTsel():enterTsel();
+$('#tsDone').onclick=exitTsel;
+$('#tsCopy').onclick=async()=>{const t=tselText();if(!t)return;let ok=false;
+  try{await navigator.clipboard.writeText(t);ok=true;}catch(_){try{ok=document.execCommand('copy');}catch(__){}}
+  toast(ok?'Testo copiato':'Non riesco a copiare: usa Copia nel menu di iPadOS',2600);};
+$('#bMarkup').onclick=()=>{exitTsel();S.markup=!S.markup;finishText();clearSel();closePop();showDock(S.markup);$('#bMarkup').classList.toggle('on',S.markup);};
 /* casella di testo al centro della parte visibile della pagina corrente */
-$('#bAddText').onclick=()=>{if(!S.pages.length)return;finishText();clearSel();closePop();
+$('#bAddText').onclick=()=>{if(!S.pages.length)return;exitTsel();finishText();clearSel();closePop();
   const r=sc.getBoundingClientRect(),cx=r.left+sc.clientWidth/2,cy=r.top+sc.clientHeight*.42;
   const p=S.pages[findPage(sc.scrollTop+sc.clientHeight*.42)];p.rect=p.el.getBoundingClientRect();
   const sz=textSize()*S.scale,x=clamp(cx-sz*2,p.rect.left+8,p.rect.right-sz*5),y=clamp(cy-sz*.6,p.rect.top+8,p.rect.bottom-sz*2);
   startText(p,null,toUser(p,x,y));};
 /* immagine: ridotta a max 1600 px, JPEG se opaca, PNG se ha trasparenze; inserita al centro della pagina visibile */
-$('#bAddImg').onclick=()=>{if(!S.pages.length)return;finishText();closePop();$('#imgfile').click();};
+$('#bAddImg').onclick=()=>{if(!S.pages.length)return;exitTsel();finishText();closePop();$('#imgfile').click();};
 function loadImg(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>rej(new Error('Formato immagine non supportato'));im.src=src;});}
 $('#imgfile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||!S.pages.length)return;
   busy('Preparo l’immagine');let src,nw,nh;
@@ -1241,7 +1286,7 @@ $('#imgfile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(
   if(!S.markup){S.markup=true;showDock(true);$('#bMarkup').classList.add('on');}
   S.tool='lasso';saveCfg();renderDock();S.sel={pg:p.i,ids:new Set([it.id]),poly:null};drawSel();
   toast('Immagine inserita: trascinala con la Pencil, usa il pallino per ridimensionarla',4000);};
-$('#bRotate').onclick=()=>{if(S.pages.length)rotatePage(Math.max(0,S.cur));};
+$('#bRotate').onclick=()=>{if(S.pages.length){exitTsel();rotatePage(Math.max(0,S.cur));}};
 $('#stBtn').onclick=()=>{if(S.statusFull)toast(S.statusFull,4500);};
 $('#bSearch').onclick=()=>el.sbar.hidden?openSearch():closeSearch();
 
@@ -1286,7 +1331,7 @@ sc.addEventListener('touchmove',e=>{if(!A||!A.suspended)return;const t=[...e.tou
   const pt=toUser(A.p,t.clientX,t.clientY);A.pts.push(pt[0],pt[1],t.force>0?clamp(t.force,0,1):.5);liveSched();},{passive:false});
 const susEnd=e=>{if(A&&A.suspended&&![...e.touches].some(t=>t.touchType==='stylus'))finishSuspended();};
 sc.addEventListener('touchend',susEnd);sc.addEventListener('touchcancel',susEnd);
-sc.addEventListener('contextmenu',e=>e.preventDefault());sc.addEventListener('selectstart',e=>{const n=e.target&&e.target.nodeType===3?e.target.parentNode:e.target;if(!n||!n.closest||!n.closest('.tedit'))e.preventDefault();});
+sc.addEventListener('contextmenu',e=>{if(!S.tsel)e.preventDefault();});sc.addEventListener('selectstart',e=>{if(S.tsel)return;const n=e.target&&e.target.nodeType===3?e.target.parentNode:e.target;if(!n||!n.closest||!n.closest('.tedit'))e.preventDefault();});
 sc.addEventListener('dragstart',e=>e.preventDefault());
 
 /* ---------- dita: scorrimento, zoom e rifiuto del palmo ----------
@@ -1357,6 +1402,8 @@ function fingerEnd(e){const now=performance.now();let stylus=false;
   if(stylus&&![...e.touches].some(t=>t.touchType==='stylus')){PALM.penDown=false;PALM.penT=now;}
   if(!TOUCH.f.size){TOUCH.palm=false;TOUCH.gs=null;}}
 function onTouch(e){const n=e.target;if(n&&n.closest&&n.closest('.tedit,.selmenu,.tbar'))return;
+  /* selezione del testo: i tocchi restano a iPadOS (pressione prolungata, maniglie); creo lo strato solo per la pagina toccata */
+  if(S.tsel){if(e.type==='touchstart'){const pg=n&&n.closest&&n.closest('.page');if(pg)buildTextLayer(S.pages[+pg.dataset.i]);}return;}
   const typ=e.type,textTap=S.markup&&S.tool==='text'&&typ!=='touchmove';
   if(e.cancelable&&!textTap)e.preventDefault();
   if(typ==='touchstart'){const ae=document.activeElement;if(ae&&ae.matches&&ae.matches('input'))ae.blur();}
@@ -1376,7 +1423,7 @@ function syncTouches(e){const live=new Set();let stylus=false;
   if(RU.g&&!e.touches.length)RU.g=null;}
 ['touchstart','touchmove','touchend','touchcancel'].forEach(t=>sc.addEventListener(t,onTouch,{passive:false}));
 /* la Pencil viene tracciata prima che parta il disegno, così il palmo appoggiato viene annullato in tempo */
-sc.addEventListener('pointerdown',e=>{if(e.pointerType==='pen'&&S.markup)penLanded();});
+sc.addEventListener('pointerdown',e=>{if(e.pointerType==='pen'&&S.markup&&!S.tsel)penLanded();});
 sc.addEventListener('pointermove',e=>{if(e.pointerType==='pen'&&S.markup&&e.buttons)PALM.penT=performance.now();},{passive:true});
 sc.addEventListener('pointerup',e=>{if(e.pointerType==='pen'){PALM.penDown=false;PALM.penT=performance.now();}});
 sc.addEventListener('pointercancel',e=>{if(e.pointerType==='pen')PALM.penT=performance.now();});
