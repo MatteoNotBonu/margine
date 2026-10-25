@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='79347cd';</script>
+<script>window.MARGINE_VER='1623c4d';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -796,7 +796,7 @@ async function renderRecents(){let docs=[];try{docs=await DB.all('docs');
   $('#empty').innerHTML='<strong>Nessun PDF ancora</strong>Tocca Apri PDF e scegli il file da File, iCloud Drive o Download.';
   docs.sort((a,b)=>(b.updated||0)-(a.updated||0));const box=$('#recents');
   $('#empty').hidden=docs.length>0;box.hidden=!docs.length;
-  box.innerHTML=docs.map(d=>`<div class="doc"><button class="doc-open" data-id="${esc(d.id)}"${d.v?'':' data-stale="1"'}><span class="doc-thumb">${d.thumb?`<img src="${d.thumb}" alt="">`:'<span>PDF</span>'}</span><span class="doc-txt"><span class="doc-name">${esc(d.name)}</span><span class="doc-meta">${(d.size/1048576).toLocaleString('it-IT',{maximumFractionDigits:1})} MB${d.pages?` · ${d.pages} pagine`:''} · ${d.editedAt?'Modificato '+whenLong(d.editedAt):'Aggiunto '+whenLong(d.added)}</span>${d.v?docState(d):'<span class="doc-st"><b style="color:var(--accent)">Tocca per riaprire il file</b></span>'}</span></button><button class="doc-exp" data-id="${esc(d.id)}" aria-label="Salva in File" title="Salva in File"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/></svg></button><button class="doc-del" data-id="${esc(d.id)}" aria-label="Rimuovi dalla libreria"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg></button></div>`).join('');}
+  box.innerHTML=docs.map(d=>`<div class="doc"><button class="doc-open" data-id="${esc(d.id)}"${d.v?'':' data-stale="1"'}><span class="doc-thumb">${d.thumb?`<img src="${d.thumb}" alt="">`:'<span>PDF</span>'}</span><span class="doc-txt"><span class="doc-name">${esc(d.name)}</span><span class="doc-meta">${(d.size/1e6).toLocaleString('it-IT',{maximumFractionDigits:1})} MB${d.pages?` · ${d.pages} pagine`:''} · ${d.editedAt?'Modificato '+whenLong(d.editedAt):'Aggiunto '+whenLong(d.added)}</span>${d.v?docState(d):'<span class="doc-st"><b style="color:var(--accent)">Tocca per riaprire il file</b></span>'}</span></button><button class="doc-exp" data-id="${esc(d.id)}" aria-label="Salva in File" title="Salva in File"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/></svg></button><button class="doc-del" data-id="${esc(d.id)}" aria-label="Rimuovi dalla libreria"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg></button></div>`).join('');}
 /* iPadOS può passare il file prima che iCloud lo abbia scaricato del tutto: riprovo con attese crescenti e con FileReader */
 function readFR(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error||new Error('lettura non riuscita'));r.readAsArrayBuffer(file);});}
 async function readFileRobust(file){let last;
@@ -1494,7 +1494,7 @@ async function exportFromLibrary(id){const dl=await downloadsP;
   unbusy();if(await offerFile(dl,meta.name,blob)){meta.exportedAt=Date.now();await DB.put('docs',meta).catch(()=>{});renderRecents();}}
 
 /* ---------- diagnostica archivio ---------- */
-const fmtMB=b=>b==null?'n/d':(b/1048576).toLocaleString('it-IT',{maximumFractionDigits:1})+' MB';
+const fmtMB=b=>b==null?'n/d':(b/1e6).toLocaleString('it-IT',{maximumFractionDigits:1})+' MB';
 async function showDiag(){const box=$('#diag');if(!box.hidden){box.hidden=true;return;}box.hidden=false;box.textContent='Controllo…';
   const info={};try{const est=navigator.storage&&navigator.storage.estimate?await navigator.storage.estimate():null;info.uso=est?`${fmtMB(est.usage)} di ${fmtMB(est.quota)}`:'n/d';}catch(e){info.uso='errore: '+e.name;}
   try{info.persistente=navigator.storage&&navigator.storage.persisted?((await navigator.storage.persisted())?'sì':'no, il sistema può liberarlo'):'n/d';}catch(e){info.persistente='n/d';}
