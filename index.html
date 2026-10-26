@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='8b7d954';</script>
+<script>window.MARGINE_VER='b515321';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -496,7 +496,7 @@ const ORDER=['pen','fine','hl','pencil','eraser','lasso','line','text'];
 const PALETTE=['#1c1c1e','#0a84ff','#34c759','#ffd60a','#ff3b30'];
 
 const S={doc:null,meta:null,pages:[],ann:{},zoom:1,scale:1,maxW1:1,tool:'pen',lastInk:'pen',cfg:{},custom:'#bf5af2',
-  markup:true,undo:[],redo:[],sel:null,editing:null,near:new Set(),rendering:false,cur:-1,
+  markup:true,undo:[],redo:[],dirtyPages:new Set(),sel:null,editing:null,near:new Set(),rendering:false,cur:-1,
   indexP:null,matches:[],mi:-1,qgen:0,painted:new Set(),thumbUrl:{},thumbVis:new Set(),thumbBusy:false,gen:0};
 
 const el={lib:$('#lib'),reader:$('#reader'),scroller:$('#scroller'),pages:$('#pages'),side:$('#side'),thumbs:$('#thumbs'),
@@ -541,8 +541,18 @@ const DB=(()=>{let p=null;
   async function drop(){try{if(p)(await p).close();}catch(e){}p=null;
     await new Promise((res,rej)=>{const r=indexedDB.deleteDatabase('margine');const t=setTimeout(()=>rej(new Error('Chiudi Margine nelle altre schede e riprova')),8000);
       r.onsuccess=()=>{clearTimeout(t);res();};r.onerror=()=>{clearTimeout(t);rej(r.error);};});}
-  return{drop,count:s=>tx(s,'readonly',o=>o.count()),get:(s,k)=>tx(s,'readonly',o=>o.get(k)),put:(s,v)=>tx(s,'readwrite',o=>o.put(v)),del:(s,k)=>tx(s,'readwrite',o=>o.delete(k)),all:s=>tx(s,'readonly',o=>o.getAll())};})();
+  return{drop,range:(s,lo,hi)=>tx(s,'readonly',o=>o.getAll(IDBKeyRange.bound(lo,hi))),batch:(s,fn)=>tx(s,'readwrite',fn),delRange:(s,lo,hi)=>tx(s,'readwrite',o=>o.delete(IDBKeyRange.bound(lo,hi))),count:s=>tx(s,'readonly',o=>o.count()),get:(s,k)=>tx(s,'readonly',o=>o.get(k)),put:(s,v)=>tx(s,'readwrite',o=>o.put(v)),del:(s,k)=>tx(s,'readwrite',o=>o.delete(k)),all:s=>tx(s,'readonly',o=>o.getAll())};})();
 
+/* annotazioni: un record per pagina, così ogni salvataggio scrive solo le pagine cambiate.
+   I documenti salvati con il formato vecchio (un record con tutte le pagine) si leggono ancora e passano al nuovo al primo salvataggio, nella stessa transazione. */
+const AK=(id,pi)=>id+'\u0001'+pi,AKLO=id=>id+'\u0001',AKHI=id=>id+'\u0001\uffff';
+async function loadAnn(id){const[recs,legacy]=await Promise.all([DB.range('annots',AKLO(id),AKHI(id)),DB.get('annots',id)]);if(!recs.length&&!legacy)return null;
+  const pages=Object.assign({},(legacy&&legacy.pages)||{});let t=(legacy&&legacy.t)||0;
+  for(const r of recs){if(r.items&&r.items.length)pages[r.pi]=r.items;else delete pages[r.pi];t=Math.max(t,r.t||0);}
+  return{pages,t,legacy:!!legacy};}
+function writeAnnPages(id,pages,dropLegacy){const t=Date.now();
+  return DB.batch('annots',o=>{let q=null;for(const[pi,items]of Object.entries(pages))q=items&&items.length?o.put({id:AK(id,pi),doc:id,pi:+pi,items,t}):o.delete(AK(id,pi));if(dropLegacy)q=o.delete(id);return q;});}
+function delAnn(id){return Promise.all([DB.del('annots',id),DB.delRange('annots',AKLO(id),AKHI(id))]);}
 function loadCfg(){let saved={};try{saved=JSON.parse(localStorage.getItem('margine.cfg')||'{}');}catch(e){}
   for(const t of ORDER){if(TOOLS[t].def)S.cfg[t]=Object.assign({},TOOLS[t].def,(saved.cfg||{})[t]||{});}
   if(saved.tool&&TOOLS[saved.tool]&&saved.tool!=='line')S.tool=saved.tool; if(saved.lastInk&&TOOLS[saved.lastInk]&&saved.lastInk!=='line')S.lastInk=saved.lastInk; if(saved.custom)S.custom=saved.custom;if(saved.lock)S.lock=true;if(saved.fmini)S.fmini=true;S.shapes=saved.shapes!==false;if(saved.focus){S.focus=true;el.reader.classList.add('focus');}}
@@ -813,7 +823,7 @@ async function addFile(file){
   let buf;
   try{buf=await readFileRobust(file);
     let rc=null;try{rc=await reclaimMargine(buf);}catch(e){logErr('ripristino annotazioni Margine',e);}
-    if(rc){buf=rc.buf;const prev=await DB.get('annots',id);if(!prev||!prev.pages||!Object.keys(prev.pages).length)await DB.put('annots',{id,pages:rc.pages,t:Date.now()});setTimeout(()=>toast(`Ritrovate ${rc.n===1?'1 annotazione':rc.n+' annotazioni'} di Margine: sono di nuovo modificabili`,4500),300);}
+    if(rc){buf=rc.buf;const prev=await loadAnn(id);if(!prev||!Object.keys(prev.pages).length)await writeAnnPages(id,rc.pages,false);setTimeout(()=>toast(`Ritrovate ${rc.n===1?'1 annotazione':rc.n+' annotazioni'} di Margine: sono di nuovo modificabili`,4500),300);}
     await DB.put('files',{id,data:buf});
     const meta=(await DB.get('docs',id))||{id,name:file.name,size:file.size,added:Date.now(),lastPage:0,zoom:1};
     meta.updated=Date.now();meta.v=2;if(rc)meta.exportedAt=Date.now();await DB.put('docs',meta);
@@ -857,7 +867,7 @@ async function openDoc(id,fresh){
   busy('Apro il documento');
   try{
     await workerReady;
-    const[rec,meta,an]=await Promise.all([DB.get('files',id),DB.get('docs',id),DB.get('annots',id)]);
+    const[rec,meta,an]=await Promise.all([DB.get('files',id),DB.get('docs',id),loadAnn(id)]);
     if(!rec||!meta)throw new Error('File non trovato nella libreria');
     const buf=fresh||await getBytes(rec);
     const gen=++S.gen;
@@ -867,7 +877,8 @@ async function openDoc(id,fresh){
     if(gen!==S.gen){doc.destroy();return;}
     let bak=null;try{bak=JSON.parse(localStorage.getItem('margine.bak.'+id)||'null');}catch(e){}
     const useBak=bak&&bak.pages&&(!an||!an.t||bak.t>an.t);
-    S.doc=doc;S.meta=meta;S.ann=(useBak?bak.pages:(an&&an.pages))||{};S.zoom=meta.zoom||1;S.undo=[];S.redo=[];S.sel=null;S.indexP=null;S.matches=[];S.mi=-1;S.painted=new Set();S.cur=-1;S.saveState='saved';
+    /* copia di riserva più recente: contiene solo le pagine non salvate, le unisco a quelle dell'archivio */
+    S.doc=doc;S.meta=meta;S.ann=Object.assign({},(an&&an.pages)||{},useBak?bak.pages:{});S.annLegacy=!!(an&&an.legacy);S.dirtyPages=new Set(useBak?Object.keys(bak.pages).map(Number):[]);S.zoom=meta.zoom||1;S.undo=[];S.redo=[];S.sel=null;S.indexP=null;S.matches=[];S.mi=-1;S.painted=new Set();S.cur=-1;S.saveState='saved';
     const n=doc.numPages;S.pages=[];let maxW=1;
     for(let i=0;i<n;i++){const pp=await doc.getPage(i+1);const vp=pp.getViewport({scale:1,rotation:rotOf(i,pp)});
       S.pages.push({i,w1:vp.width,h1:vp.height,vt:vp.transform.slice(),inv:invert(vp.transform),canvas:null,task:null,rs:0,failed:false,top:0,h:0,w:0});
@@ -878,11 +889,10 @@ async function openDoc(id,fresh){
     meta.pages=n;meta.updated=Date.now();DB.put('docs',meta).catch(()=>{});
     $('#docName').textContent=meta.name.replace(/\.pdf$/i,'');
     showReader();layout();showDock(S.markup);$('#bMarkup').classList.toggle('on',S.markup);
-    for(const k of Object.keys(S.ann)){const p=S.pages[+k];if(p)renderInk(p);}
     const lp=clamp(meta.lastPage||0,0,n-1);el.scroller.scrollTop=S.pages[lp].top-PADT+2;
-    buildThumbs();updateCur();updateNear();renderDock();unbusy();
+    buildThumbs();updateCur();updateNear();renderDock();unbusy();warmT=setTimeout(()=>warmPaths(gen),400);
     if(!meta.thumb)setTimeout(()=>makeDocThumb(gen),1200);
-    if(useBak)saveAnnNow();
+    if(useBak||S.annLegacy)saveAnnNow(true);
   }catch(e){unbusy();logErr('apertura PDF',e);toast(e&&e.message?e.message:'Errore durante l’apertura',e&&e.stale?7000:4000);console.error(e);if(!S.doc)showLibrary();}}
 async function makeDocThumb(gen){try{if(gen!==S.gen||!S.doc||!S.meta)return;const m=S.meta;const pp=await S.doc.getPage(1);const vp=pp.getViewport({scale:120/S.pages[0].w1,rotation:rotOf(0,pp)});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pp.render({canvasContext:x,viewport:vp}).promise;const th=c.toDataURL('image/jpeg',.72);c.width=c.height=0;
   if(gen!==S.gen||DELETED.has(m.id))return;m.thumb=th;await DB.put('docs',m);}catch(e){}}
@@ -893,7 +903,7 @@ async function closeDoc(){exitTsel();finishText();closePop();el.menu.hidden=true
   el.pages.textContent='';el.thumbs.textContent='';for(const u of Object.values(S.thumbUrl))URL.revokeObjectURL(u);S.thumbUrl={};S.thumbVis.clear();
   try{S.doc&&S.doc.destroy();}catch(e){}
   /* dimentico il documento chiuso: nessun salvataggio successivo (app in secondo piano, timer) può riscriverlo */
-  clearTimeout(saveT);clearTimeout(retryT);clearTimeout(metaT);S.meta=null;S.cur=-1;
+  clearTimeout(saveT);clearTimeout(retryT);clearTimeout(metaT);clearTimeout(warmT);dropImgUrls();S.meta=null;S.cur=-1;
   S.doc=null;S.pages=[];S.ann={};S.sel=null;closeSearch();showLibrary();}
 
 /* ---------- pagine, layout, rendering ---------- */
@@ -921,7 +931,9 @@ function layout(){if(!S.pages.length)return;const sc=el.scroller,px=padX();el.pa
 function findPage(y){const P=S.pages;let a=0,b=P.length-1;while(a<b){const m=(a+b)>>1;if(P[m].top+P[m].h<y)a=m+1;else b=m;}return a;}
 function pageLeft(p){return(el.pages.offsetWidth-p.w)/2;}
 function updateNear(){if(!S.pages.length)return;const st=el.scroller.scrollTop,vh=el.scroller.clientHeight,lo=st-vh*.6,hi=st+vh*1.6,near=new Set();
-  for(let i=findPage(lo);i<S.pages.length;i++){const p=S.pages[i];if(p.top>hi)break;near.add(i);}S.near=near;pump();}
+  for(let i=findPage(lo);i<S.pages.length;i++){const p=S.pages[i];if(p.top>hi)break;near.add(i);}S.near=near;
+  for(const p of S.pages){if(near.has(p.i)){if(!p.inkOn)renderInk(p);}else if(p.inkOn)dropInk(p);}
+  pump();}
 function needsRender(p){return!p.failed&&(!p.canvas||Math.abs(p.rs-S.scale)/S.scale>.12);}
 function unrender(p){dropTextLayer(p);if(p.task){try{p.task.cancel();}catch(e){}p.task=null;}
   if(p.canvas){p.canvas.width=p.canvas.height=0;p.canvas.remove();p.canvas=null;p.rs=0;p.el.classList.remove('ready');
@@ -989,40 +1001,64 @@ async function pumpThumbs(){if(!S.doc||S.thumbBusy||S.rendering||!el.reader.clas
   S.thumbBusy=false;if(gen===S.gen)setTimeout(()=>{pump();pumpThumbs();},0);}
 
 /* ---------- annotazioni: rendering ---------- */
+/* il contorno dei tratti è calcolato una volta sola: le annotazioni non cambiano mai sul posto, ogni modifica crea un oggetto nuovo */
+const dCache=new WeakMap();
+function itemD(it,f){let d=dCache.get(it);if(d===undefined){d=f();dCache.set(it,d);}return d;}
+/* immagini: un indirizzo blob per ogni foto, così Safari la decodifica una volta sola anche quando la pagina esce e rientra */
+const IMGURL=new Map();
+function imgHref(src){let u=IMGURL.get(src);if(u)return u;u=src;
+  try{const m=/^data:([^;,]+);base64,/.exec(src);if(m){const bin=atob(src.slice(m[0].length)),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);u=URL.createObjectURL(new Blob([u8],{type:m[1]}));}}catch(e){u=src;}
+  IMGURL.set(src,u);return u;}
+function dropImgUrls(){for(const u of IMGURL.values())if(u.startsWith('blob:'))URL.revokeObjectURL(u);IMGURL.clear();}
+const strokeD=it=>itemD(it,()=>TOOLS[it.tool]&&TOOLS[it.tool].press?svgD(polySegs(outlinePoly(it.pts,it.w))):svgD(monoSegs(it)));
+/* dopo l'apertura preparo i contorni delle pagine annotate a piccoli pezzi, partendo da quella corrente: scorrendo le pagine compaiono senza scatti */
+let warmT=0;
+function warmPaths(gen){clearTimeout(warmT);if(gen!==S.gen||!S.pages.length)return;if(A&&A.kind!=='tap'){warmT=setTimeout(()=>warmPaths(gen),300);return;}
+  const c=Math.max(0,S.cur),order=[];for(let d=0;d<S.pages.length;d++){if(c+d<S.pages.length)order.push(c+d);if(d&&c-d>=0)order.push(c-d);}
+  const t0=performance.now();
+  for(const i of order){for(const it of(S.ann[i]||[])){if(it.kind!=='stroke'||dCache.has(it))continue;strokeD(it);if(performance.now()-t0>8){warmT=setTimeout(()=>warmPaths(gen),16);return;}}}}
 function itemNode(p,it){
   if(it.kind==='image'){const[a,b,c,d]=p.vt;const n=document.createElementNS(NS,'image');n.dataset.t=`matrix(${a} ${c} ${b} ${d} ${it.x} ${it.y})`;n.setAttribute('transform',n.dataset.t);
-    n.setAttribute('width',it.w);n.setAttribute('height',it.h);n.setAttribute('preserveAspectRatio','none');n.setAttribute('href',it.src);return n;}
+    n.setAttribute('width',it.w);n.setAttribute('height',it.h);n.setAttribute('preserveAspectRatio','none');n.setAttribute('href',imgHref(it.src));return n;}
   if(it.kind==='text'){const[a,b,c,d]=p.vt;const t=document.createElementNS(NS,'text');t.dataset.t=`matrix(${a} ${c} ${b} ${d} ${it.x} ${it.y})`;t.setAttribute('transform',t.dataset.t);
     t.setAttribute('font-size',it.size);t.setAttribute('fill',it.color);t.setAttribute('font-family','Helvetica, Arial, sans-serif');t.style.whiteSpace='pre';
     it.text.split('\n').forEach((l,k)=>{const s=document.createElementNS(NS,'tspan');s.setAttribute('x',0);s.setAttribute('y',r2(it.size*.9+k*it.size*1.2));s.textContent=l||' ';t.append(s);});return t;}
   const n=document.createElementNS(NS,'path');n.dataset.t='';
   if(it.kind==='shape'){n.setAttribute('d',svgD(shapeSegs(it)));const f=shapeClosed(it)&&it.fill;n.setAttribute('fill',f||'none');if(f&&(it.fop==null?.3:it.fop)<1)n.setAttribute('fill-opacity',it.fop==null?.3:it.fop);
     n.setAttribute('stroke',it.color);n.setAttribute('stroke-width',it.w);n.setAttribute('stroke-linecap','round');n.setAttribute('stroke-linejoin','round');if(it.op<1)n.setAttribute('stroke-opacity',it.op);return n;}
-  if(TOOLS[it.tool]&&TOOLS[it.tool].press){n.setAttribute('d',svgD(polySegs(outlinePoly(it.pts,it.w))));n.setAttribute('fill',it.color);if(it.op<1)n.setAttribute('fill-opacity',it.op);}
-  else{n.setAttribute('d',svgD(monoSegs(it)));n.setAttribute('fill','none');n.setAttribute('stroke',it.color);n.setAttribute('stroke-width',it.w);n.setAttribute('stroke-linecap','round');n.setAttribute('stroke-linejoin','round');if(it.op<1)n.setAttribute('stroke-opacity',it.op);}
+  if(TOOLS[it.tool]&&TOOLS[it.tool].press){n.setAttribute('d',strokeD(it));n.setAttribute('fill',it.color);if(it.op<1)n.setAttribute('fill-opacity',it.op);}
+  else{n.setAttribute('d',strokeD(it));n.setAttribute('fill','none');n.setAttribute('stroke',it.color);n.setAttribute('stroke-width',it.w);n.setAttribute('stroke-linecap','round');n.setAttribute('stroke-linejoin','round');if(it.op<1)n.setAttribute('stroke-opacity',it.op);}
   return n;}
 function appendNode(p,it){const n=itemNode(p,it);p.nodes.set(it.id,n);(it.kind==='image'?p.gImg:it.tool==='hl'?p.gH:p.gI).append(n);if(it.kind==='image')imgLayer(p);}
 /* livello immagini sempre su un proprio strato grafico: senza, ogni tratto vicino lo fa promuovere e retrocedere e la foto si sposta di un pixel su e giù */
 function imgLayer(p){const sv=p.gImg.ownerSVGElement;if(sv)sv.classList.toggle('has',!!p.gImg.firstChild);}
-function renderInk(p){p.gH.textContent='';p.gI.textContent='';p.gImg.textContent='';p.nodes.clear();for(const it of(S.ann[p.i]||[]))appendNode(p,it);imgLayer(p);if(S.sel&&S.sel.pg===p.i)drawSel();}
+/* annotazioni nel DOM solo per le pagine vicine a quella che stai guardando */
+function dropInk(p){if(!p.inkOn||(S.sel&&S.sel.pg===p.i)||(S.editing&&S.editing.p===p)||(A&&A.p===p))return;p.gH.textContent='';p.gI.textContent='';p.gImg.textContent='';p.nodes.clear();imgLayer(p);p.inkOn=false;}
+function renderInk(p){p.inkOn=true;p.gH.textContent='';p.gI.textContent='';p.gImg.textContent='';p.nodes.clear();for(const it of(S.ann[p.i]||[]))appendNode(p,it);imgLayer(p);if(S.sel&&S.sel.pg===p.i)drawSel();}
 
 /* ---------- storico e salvataggio ---------- */
 function markEdited(){if(S.meta){S.meta.editedAt=Date.now();updInd();}}
 /* più pagine in un solo passo annullabile (es. spostamento da una pagina all'altra) */
-function setItemsMulti(list){markEdited();const multi=list.map(({pi,after})=>{const before=S.ann[pi]||[];S.ann[pi]=after;return{pi,before,after};});S.undo.push({multi});if(S.undo.length>300)S.undo.shift();S.redo.length=0;dirty();updUndo();}
-function setItems(pi,after){markEdited();const before=S.ann[pi]||[];S.ann[pi]=after;S.undo.push({pi,before,after});if(S.undo.length>300)S.undo.shift();S.redo.length=0;dirty();updUndo();}
+function setItemsMulti(list){markEdited();const multi=list.map(({pi,after})=>{const before=S.ann[pi]||[];S.ann[pi]=after;S.dirtyPages.add(pi);return{pi,before,after};});S.undo.push({multi});if(S.undo.length>300)S.undo.shift();S.redo.length=0;dirty();updUndo();}
+function setItems(pi,after){markEdited();const before=S.ann[pi]||[];S.ann[pi]=after;S.dirtyPages.add(pi);S.undo.push({pi,before,after});if(S.undo.length>300)S.undo.shift();S.redo.length=0;dirty();updUndo();}
 function addItem(p,it){setItems(p.i,[...(S.ann[p.i]||[]),it]);appendNode(p,it);}
 function updUndo(){$('#bUndo').disabled=!S.undo.length;$('#bRedo').disabled=!S.redo.length;}
-function hist(dir){finishText();const a=(dir<0?S.undo:S.redo).pop();if(!a)return;(dir<0?S.redo:S.undo).push(a);const ch=a.multi||[a];for(const c of ch)S.ann[c.pi]=dir<0?c.before:c.after;markEdited();
+function hist(dir){finishText();const a=(dir<0?S.undo:S.redo).pop();if(!a)return;(dir<0?S.redo:S.undo).push(a);const ch=a.multi||[a];for(const c of ch){S.ann[c.pi]=dir<0?c.before:c.after;S.dirtyPages.add(c.pi);}markEdited();
   clearSel();for(const c of ch)renderInk(S.pages[c.pi]);const p=S.pages[ch[0].pi];dirty();updUndo();
   const st=el.scroller.scrollTop,vh=el.scroller.clientHeight;if(p.top+p.h<st||p.top>st+vh)scrollToPage(a.pi);}
-let saveT;function dirty(){clearTimeout(saveT);S.saveState='dirty';updInd();saveT=setTimeout(saveAnnNow,600);}
+/* salvataggio automatico: mai mentre la penna scrive, così non rallenta il tratto successivo */
+let saveT;function dirty(){clearTimeout(saveT);S.saveState='dirty';updInd();saveT=setTimeout(autoSave,800);}
+function autoSave(){if(A&&A.kind!=='tap'){clearTimeout(saveT);saveT=setTimeout(autoSave,400);return;}saveAnnNow();}
 let saveWarned=false,retryT;
 const DELETED=new Set();
-async function saveAnnNow(){clearTimeout(saveT);clearTimeout(retryT);if(!S.meta||!S.doc||DELETED.has(S.meta.id))return;S.saveState='saving';updInd();
-  const id=S.meta.id,pages={};for(const[k,v]of Object.entries(S.ann))if(v&&v.length)pages[k]=v;const t=Date.now();
-  try{await DB.put('annots',{id,pages,t});S.meta.updated=t;saveMeta(true);S.saveState='saved';saveWarned=false;try{localStorage.removeItem('margine.bak.'+id);}catch(e){}}
-  catch(e){S.saveState='error';logErr('salvataggio annotazioni',e);let bak=false;try{localStorage.setItem('margine.bak.'+id,JSON.stringify({t,pages}));bak=true;}catch(_){}
+async function saveAnnNow(){clearTimeout(saveT);clearTimeout(retryT);if(!S.meta||!S.doc||DELETED.has(S.meta.id))return;
+  const id=S.meta.id,mig=!!S.annLegacy,dp=mig?new Set(Object.keys(S.ann).map(Number)):new Set(S.dirtyPages);
+  if(!dp.size){if(S.saveState!=='error'){S.saveState='saved';updInd();}return;}
+  S.dirtyPages.clear();S.saveState='saving';updInd();
+  const pages={};for(const pi of dp)pages[pi]=S.ann[pi]||[];const t=Date.now();
+  try{await writeAnnPages(id,pages,mig);if(mig)S.annLegacy=false;S.meta.updated=t;saveMeta(true);S.saveState=S.dirtyPages.size?'dirty':'saved';saveWarned=false;try{localStorage.removeItem('margine.bak.'+id);}catch(e){}}
+  catch(e){for(const pi of dp)S.dirtyPages.add(pi);S.saveState='error';logErr('salvataggio annotazioni',e);let bak=false;
+    try{const old=JSON.parse(localStorage.getItem('margine.bak.'+id)||'null'),all=Object.assign({},old&&old.pages||{});for(const pi of S.dirtyPages)all[pi]=S.ann[pi]||[];localStorage.setItem('margine.bak.'+id,JSON.stringify({t,pages:all}));bak=true;}catch(_){}
     if(!saveWarned){saveWarned=true;const q=e&&e.name==='QuotaExceededError';
       toast(q?'Spazio esaurito sull’iPad: rimuovi qualche PDF dalla libreria o usa Salva in File.':bak?'Archivio dell’iPad momentaneamente non disponibile: ho tenuto una copia di riserva e riprovo da solo.':'Salvataggio non riuscito, riprovo da solo. Per sicurezza usa Esporta.',5000);}
     retryT=setTimeout(saveAnnNow,3000);}
@@ -1508,8 +1544,8 @@ async function exportFromLibrary(id){const dl=await downloadsP;
   if(!dl&&!STANDALONE){toast('Il salvataggio dei file non è disponibile in questa vista. Apri la pagina da claude.ai in Safari.',4500);return;}
   busy('Preparo il PDF annotato',.05);let blob,meta;
   try{meta=await DB.get('docs',id);if(!meta)throw new Error('Documento non trovato');
-    const an=await DB.get('annots',id);let pages=(an&&an.pages)||{};
-    try{const bak=JSON.parse(localStorage.getItem('margine.bak.'+id)||'null');if(bak&&bak.pages&&(!an||!an.t||bak.t>an.t))pages=bak.pages;}catch(e){}
+    const an=await loadAnn(id);let pages=(an&&an.pages)||{};
+    try{const bak=JSON.parse(localStorage.getItem('margine.bak.'+id)||'null');if(bak&&bak.pages&&(!an||!an.t||bak.t>an.t))pages=Object.assign({},pages,bak.pages);}catch(e){}
     blob=await buildExport(id,pages,meta.rot);}
   catch(e){unbusy();logErr('esportazione dalla libreria',e);toast(e&&e.stale?e.message:'Salvataggio in File non riuscito: '+(e&&e.message||e),6000);return;}
   unbusy();if(await offerFile(dl,meta.name,blob)){meta.exportedAt=Date.now();await DB.put('docs',meta).catch(()=>{});renderRecents();}}
@@ -1521,7 +1557,7 @@ async function showDiag(){const box=$('#diag');if(!box.hidden){box.hidden=true;r
   try{info.persistente=navigator.storage&&navigator.storage.persisted?((await navigator.storage.persisted())?'sì':'no, il sistema può liberarlo'):'n/d';}catch(e){info.persistente='n/d';}
   for(const st of['docs','files','annots']){try{info[st]=await DB.count(st);}catch(e){info[st]='errore: '+(e.name||e);}}
   try{let bytes=0;const docs=await DB.all('docs');for(const d of docs){bytes+=d.size||0;bytes+=(d.thumb||'').length;}
-    const an=await DB.all('annots');for(const a of an)bytes+=JSON.stringify(a.pages||{}).length;
+    const an=await DB.all('annots');for(const a of an)bytes+=JSON.stringify(a.pages||a.items||{}).length;
     let ls=0;for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('margine'))ls+=(localStorage.getItem(k)||'').length*2;}
     info.mine=fmtMB(bytes+ls);}catch(e){info.mine='n/d';}
   info.contesto=(window.top!==window?'pagina dentro claude.ai':(navigator.standalone||matchMedia('(display-mode: standalone)').matches)?'app sulla schermata Home':'pagina diretta')+(/CriOS|FxiOS/.test(navigator.userAgent)?'':(/Safari/.test(navigator.userAgent)?' · Safari':' · app'));
@@ -1541,9 +1577,10 @@ async function freeSpace(){busy('Libero spazio',.1);
   let before=null;try{before=(await navigator.storage.estimate()).usage;}catch(e){}
   try{const docs=await DB.all('docs'),annots=await DB.all('annots');const files=[];let i=0;
     for(const d of docs){const f=await DB.get('files',d.id);if(f){if(f.blob&&!f.data){try{f.data=await f.blob.arrayBuffer();delete f.blob;}catch(_){continue;}}files.push(f);}busy('Leggo i documenti',.1+.4*(++i)/Math.max(1,docs.length));}
-    const bakT=Date.now()+1;for(const an of annots){try{localStorage.setItem('margine.bak.'+an.id,JSON.stringify({t:bakT,pages:an.pages}));}catch(_){}}
+    const bakT=Date.now()+1,byDoc={};for(const an of annots){const d=an.doc||an.id,m=byDoc[d]||(byDoc[d]={});if(an.pages)Object.assign(m,an.pages);else if(an.items)m[an.pi]=an.items;}
+    for(const[d,pg]of Object.entries(byDoc)){try{localStorage.setItem('margine.bak.'+d,JSON.stringify({t:bakT,pages:pg}));}catch(_){}}
     busy('Creo l’archivio nuovo',.55);await DB.drop();await tick(200);
-    for(const f of files)await DB.put('files',f);for(const d of docs)await DB.put('docs',d);for(const a of annots){await DB.put('annots',a);try{localStorage.removeItem('margine.bak.'+a.id);}catch(_){}}
+    for(const f of files)await DB.put('files',f);for(const d of docs)await DB.put('docs',d);for(const a of annots)await DB.put('annots',a);for(const d of Object.keys(byDoc)){try{localStorage.removeItem('margine.bak.'+d);}catch(_){}}
     let after=null;try{after=(await navigator.storage.estimate()).usage;}catch(e){}
     unbusy();toast(`Archivio ricreato. Stima di Safari: ${fmtMB(before)} → ${fmtMB(after)} (può aggiornarsi più tardi)`,5500);
   }catch(e){unbusy();logErr('libera spazio',e);toast('Operazione non riuscita: '+(e&&e.message||e),6000);}
@@ -1557,7 +1594,7 @@ $('#recents').addEventListener('click',async e=>{const o=e.target.closest('.doc-
   const x=e.target.closest('.doc-exp');if(x){const st=x.parentNode.querySelector('.doc-open').dataset.stale;if(st){toast('Questo PDF va riaperto prima: toccalo e scegli di nuovo lo stesso file',5000);return;}exportFromLibrary(x.dataset.id);return;}
   const d=e.target.closest('.doc-del');if(!d)return;
   if(!d.classList.contains('confirm')){d.classList.add('confirm');d.textContent='Rimuovi';setTimeout(()=>{if(d.isConnected){renderRecents();}},4000);return;}
-  const id=d.dataset.id;DELETED.add(id);logErr('rimosso dalla libreria (da te)',id.split('|')[0]);try{localStorage.setItem('margine.lastdel','1');}catch(_){}await Promise.all([DB.del('files',id),DB.del('docs',id),DB.del('annots',id)]).catch(()=>{});renderRecents();toast('Rimosso dalla libreria');});
+  const id=d.dataset.id;DELETED.add(id);logErr('rimosso dalla libreria (da te)',id.split('|')[0]);try{localStorage.setItem('margine.lastdel','1');}catch(_){}await Promise.all([DB.del('files',id),DB.del('docs',id),delAnn(id)]).catch(()=>{});renderRecents();toast('Rimosso dalla libreria');});
 el.lib.addEventListener('dragover',e=>{e.preventDefault();el.lib.classList.add('drag');});
 el.lib.addEventListener('dragleave',()=>el.lib.classList.remove('drag'));
 el.lib.addEventListener('drop',e=>{e.preventDefault();el.lib.classList.remove('drag');const f=e.dataTransfer.files[0];addFile(f);});
@@ -1802,6 +1839,7 @@ document.addEventListener('keydown',e=>{if(!S.doc||CR||S.editing||(e.target.clos
   else if(mod&&(k==='='||k==='+')){e.preventDefault();setZoom(S.zoom*1.25);}else if(mod&&k==='-'){e.preventDefault();setZoom(S.zoom/1.25);}
   else if((k==='backspace'||k==='delete')&&S.sel){e.preventDefault();delSel();}else if(k==='escape'){clearSel();closePop();}});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&S.meta&&S.doc){saveAnnNow();saveMeta(true);}});
+
 window.addEventListener('pagehide',()=>{if(S.meta&&S.doc){saveAnnNow();}});
 
 loadCfg();updShapesChk();buildSwatches();renderDock();renderRecents();setLock(!!S.lock,true);
