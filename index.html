@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='b515321';</script>
+<script>window.MARGINE_VER='6a43d9f';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -239,7 +239,12 @@ svg{display:block}
 .menu .zl{color:var(--fg2);font-variant-numeric:tabular-nums}
 .menu .mchk{color:var(--fg2);font-size:14px}.menu .mchk.on{color:var(--accent)}
 .spop{width:auto;max-width:calc(100vw - 16px);gap:10px;z-index:32}
-.spop .srow{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}
+.pop .srow{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}
+/* pallino arcobaleno: il primo tocco rimette il colore personalizzato, il tocco sul pallino già scelto apre il selettore */
+.dot.custom:not(.on) input,.sdot.custom:not(.on) input{pointer-events:none}
+.plabel.prow{display:flex;justify-content:space-between;align-items:center}.plabel .pedit{font:inherit;color:#4da3ff;padding:0 2px}
+.sdot.add{background:rgba(255,255,255,.14);color:#fff;font:500 20px/30px var(--sans);text-align:center}
+.pop.editing .sdot.saved::after{content:'×';position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:#ff453a;color:#fff;font:700 12px/16px var(--sans);text-align:center}
 .sdot{width:30px;height:30px;border-radius:50%;background:var(--c);flex:none;position:relative}
 .sdot.on{box-shadow:0 0 0 2px var(--dock),0 0 0 4px #fff}
 .sdot.custom{background:radial-gradient(circle,var(--c) 0 46%,transparent 48%),conic-gradient(#ff3b30,#ffcc00,#34c759,#5ac8fa,#0a84ff,#bf5af2,#ff3b30);cursor:pointer;display:block}
@@ -555,8 +560,8 @@ function writeAnnPages(id,pages,dropLegacy){const t=Date.now();
 function delAnn(id){return Promise.all([DB.del('annots',id),DB.delRange('annots',AKLO(id),AKHI(id))]);}
 function loadCfg(){let saved={};try{saved=JSON.parse(localStorage.getItem('margine.cfg')||'{}');}catch(e){}
   for(const t of ORDER){if(TOOLS[t].def)S.cfg[t]=Object.assign({},TOOLS[t].def,(saved.cfg||{})[t]||{});}
-  if(saved.tool&&TOOLS[saved.tool]&&saved.tool!=='line')S.tool=saved.tool; if(saved.lastInk&&TOOLS[saved.lastInk]&&saved.lastInk!=='line')S.lastInk=saved.lastInk; if(saved.custom)S.custom=saved.custom;if(saved.lock)S.lock=true;if(saved.fmini)S.fmini=true;S.shapes=saved.shapes!==false;if(saved.focus){S.focus=true;el.reader.classList.add('focus');}}
-function saveCfg(){try{localStorage.setItem('margine.cfg',JSON.stringify({cfg:S.cfg,tool:S.tool,lastInk:S.lastInk,custom:S.custom,focus:!!S.focus,lock:!!S.lock,fmini:!!S.fmini,shapes:S.shapes!==false}));}catch(e){}}
+  if(saved.tool&&TOOLS[saved.tool]&&saved.tool!=='line')S.tool=saved.tool; if(saved.lastInk&&TOOLS[saved.lastInk]&&saved.lastInk!=='line')S.lastInk=saved.lastInk; if(saved.custom)S.custom=saved.custom;S.saved=Array.isArray(saved.saved)?saved.saved.filter(c=>/^#[0-9a-f]{6}$/i.test(c)).slice(0,12):[];if(saved.lock)S.lock=true;if(saved.fmini)S.fmini=true;S.shapes=saved.shapes!==false;if(saved.focus){S.focus=true;el.reader.classList.add('focus');}}
+function saveCfg(){try{localStorage.setItem('margine.cfg',JSON.stringify({cfg:S.cfg,tool:S.tool,lastInk:S.lastInk,custom:S.custom,focus:!!S.focus,lock:!!S.lock,fmini:!!S.fmini,shapes:S.shapes!==false,saved:S.saved||[]}));}catch(e){}}
 
 /* ---------- PDF.js worker ---------- */
 async function setupWorker(){
@@ -765,7 +770,7 @@ function renderDock(){
   el.tools.innerHTML=ORDER.map((t,k)=>`<button class="tool${(t==='line'?RU.on:t===S.tool)?' on':''}" style="--i:${k}" data-t="${t}" aria-label="${TOOLS[t].name}" title="${TOOLS[t].name}">${instr(t,(S.cfg[t]||{}).color)}</button>`).join('');
   const ct=colorTool();const cur=S.cfg[ct].color;
   el.sw.querySelectorAll('.dot').forEach(d=>d.classList.toggle('on',d.dataset.c?d.dataset.c===cur:!PALETTE.includes(cur)));
-  const cu=el.sw.querySelector('.custom');cu.style.setProperty('--c',PALETTE.includes(cur)?S.custom:cur);
+  const cu=el.sw.querySelector('.custom');cu.style.setProperty('--c',PALETTE.includes(cur)?S.custom:cur);const ci=cu.querySelector('input');const cv=PALETTE.includes(cur)?S.custom:cur;if(ci&&ci.value!==cv&&document.activeElement!==ci)ci.value=cv;
   el.dock.classList.toggle('dim',!S.sel&&!(S.cfg[S.tool]&&'color' in S.cfg[S.tool]));
   updUndo();}
 function colorTool(){return(S.cfg[S.tool]&&'color' in S.cfg[S.tool])?S.tool:S.lastInk;}
@@ -785,10 +790,13 @@ function applyColor(c){
 function openPop(){const t=S.tool,T=TOOLS[t];if(!T.widths)return;const cfg=S.cfg[t];let h=`<div class="plabel">${T.name}</div><div class="wrow">`;
   T.widths.forEach((w,k)=>{h+=`<button class="wopt${k===cfg.wi?' on':''}" data-k="${k}" aria-label="Spessore ${k+1}">`+(t==='text'?`<span style="font:600 ${11+k*3.5}px Helvetica,Arial,sans-serif">A</span>`:t==='eraser'?`<span class="edot" style="width:${5+k*4}px;height:${5+k*4}px"></span>`:`<svg viewBox="0 0 36 28"><path d="M5 20c4-10 8-14 11-10s-1 12 4 10 7-12 11-12" fill="none" stroke="currentColor" stroke-width="${[1.4,2.3,3.4,4.6,6.2][k]}" stroke-linecap="round"/></svg>`)+'</button>';});
   h+='</div>';if(t==='eraser')h=`<div class="seg"><button data-m="pixel" class="${cfg.mode==='pixel'?'on':''}">Gomma pixel</button><button data-m="object" class="${cfg.mode!=='pixel'?'on':''}">Gomma oggetto</button></div>`+h;if(T.kind==='ink')h+=`<div class="orow"><input type="range" id="op" min="10" max="100" value="${Math.round(cfg.op*100)}" style="--c:${cfg.color}" aria-label="Opacità"></div>`;
+  if(cfg&&'color' in cfg){const sv=S.saved||[];
+    h+=`<div class="plabel prow"><span>Colori salvati</span>${sv.length?`<button class="pedit" data-pedit>${el.pop.classList.contains('editing')?'Fine':'Modifica'}</button>`:''}</div><div class="srow">${sv.map(c=>`<button class="sdot saved${c===cfg.color?' on':''}" data-pc="${c}" style="--c:${c}" aria-label="Colore salvato ${c}"></button>`).join('')}<button class="sdot add" data-padd aria-label="Salva il colore attuale">+</button></div>`;}
+  else el.pop.classList.remove('editing');
   el.pop.innerHTML=h;el.pop.hidden=false;
   const b=el.tools.querySelector(`[data-t="${t}"]`).getBoundingClientRect();const pw=el.pop.offsetWidth,ph=el.pop.offsetHeight;
   el.pop.style.left=clamp(b.left+b.width/2-pw/2,12,innerWidth-pw-12)+'px';el.pop.style.top=(el.dock.getBoundingClientRect().top-ph-10)+'px';}
-function closePop(){el.pop.hidden=true;}
+function closePop(){el.pop.hidden=true;el.pop.classList.remove('editing');}
 
 /* ---------- apertura documenti ---------- */
 /* "oggi alle 18:40", "ieri alle 9:05", "25 ott alle 18:40", con l'anno se diverso */
@@ -1120,9 +1128,9 @@ const SHW=[.6,1.2,2,3,4.5];
 function selShapes(){if(!S.sel)return[];return(S.ann[S.sel.pg]||[]).filter(it=>S.sel.ids.has(it.id)&&it.kind==='shape');}
 function openSpop(){const sh=selShapes();if(!sh.length){spop.hidden=true;return;}const f=sh[0],closed=sh.some(shapeClosed),hl=sh.every(q=>q.tool==='hl');
   const W=hl?TOOLS.hl.widths:SHW;let wi=0;W.forEach((w,k)=>{if(Math.abs(w-f.w)<Math.abs(W[wi]-f.w))wi=k;});
-  const cols=PALETTE,fop=f.fop==null?.3:f.fop;
+  const cols=PALETTE.concat((S.saved||[]).filter(c=>!PALETTE.includes(c))),fop=f.fop==null?.3:f.fop;
   /* colore personalizzato: stesso selettore dei colori di penne ed evidenziatori */
-  const cust=(at,cur)=>{const own=!!cur&&!PALETTE.includes(cur),c=own?cur:S.custom;return`<label class="sdot custom${own?' on':''}" style="--c:${c}" aria-label="Colore personalizzato"><input type="color" data-${at}="1" value="${c}"></label>`;};
+  const cust=(at,cur)=>{const own=!!cur&&!cols.includes(cur),c=own?cur:S.custom;return`<label class="sdot custom${own?' on':''}" style="--c:${c}" aria-label="Colore personalizzato"><input type="color" data-${at}="1" value="${c}"></label>`;};
   const dot=(at,c,on)=>`<button class="sdot${on?' on':''}" data-${at}="${c}" style="--c:${c}" aria-label="Colore ${c}"></button>`;
   let h=`<div class="plabel">Bordo</div><div class="srow">${cols.map(c=>dot('sc',c,c===f.color)).join('')}${cust('scc',f.color)}</div>`;
   if(closed){const ff=sh.find(q=>shapeClosed(q))||f;h+=`<div class="plabel">Riempimento</div><div class="srow"><button class="sdot none${ff.fill?'':' on'}" data-sf="" aria-label="Nessun riempimento"></button>${cols.map(c=>dot('sf',c,c===ff.fill)).join('')}${cust('sfc',ff.fill)}</div>`;
@@ -1142,7 +1150,10 @@ function placeSpop(){const pw=spop.offsetWidth,ph=spop.offsetHeight,W=innerWidth
   spop.style.left=x+'px';spop.style.top=y+'px';}
 function patchShapes(fn){if(!S.sel)return;const p=S.pages[S.sel.pg];setItems(p.i,(S.ann[p.i]||[]).map(it=>S.sel.ids.has(it.id)&&it.kind==='shape'?fn(it):it));renderInk(p);openSpop();}
 spop.addEventListener('mousedown',e=>{if(!e.target.closest('input'))e.preventDefault();});
-spop.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+spop.addEventListener('click',e=>{const cu=e.target.closest('.sdot.custom');
+  if(cu){if(!cu.classList.contains('on')){e.preventDefault();const c=S.custom,inp=cu.querySelector('input');
+      if(inp.dataset.scc)patchShapes(it=>Object.assign({},it,{color:c}));else patchShapes(it=>shapeClosed(it)?Object.assign({},it,{fill:c,fop:it.fop==null?.3:it.fop}):it);}return;}
+  const b=e.target.closest('button');if(!b)return;
   if(b.dataset.sc!=null){const c=b.dataset.sc;patchShapes(it=>Object.assign({},it,{color:c}));}
   else if(b.dataset.sf!=null){const c=b.dataset.sf||null;patchShapes(it=>shapeClosed(it)?Object.assign({},it,{fill:c,fop:it.fop==null?.3:it.fop}):it);}
   else if(b.dataset.sh!=null){const v=+b.dataset.sh;patchShapes(it=>it.type==='line'?Object.assign({},it,{head:v||undefined}):it);}
@@ -1682,12 +1693,20 @@ $('#bFocus').onclick=()=>setFocus(true);$('#bHome2').onclick=requestClose;$('#bS
 $('#bSearch2').onclick=()=>el.sbar.hidden?openSearch():closeSearch();
 $('#bUndo').onclick=()=>hist(-1);$('#bRedo').onclick=()=>hist(1);
 el.tools.addEventListener('click',e=>{const b=e.target.closest('.tool');if(b)selectTool(b.dataset.t);});
-el.sw.addEventListener('click',e=>{const d=e.target.closest('.dot');if(!d||d.classList.contains('custom'))return;applyColor(d.dataset.c);});
+el.sw.addEventListener('click',e=>{const d=e.target.closest('.dot');if(!d)return;
+  if(d.classList.contains('custom')){if(!d.classList.contains('on')){e.preventDefault();applyColor(S.custom);}return;}applyColor(d.dataset.c);});
 el.sw.addEventListener('input',e=>{if(e.target.id==='cpick'){S.custom=e.target.value;applyColor(e.target.value);}});
 el.sw.addEventListener('change',e=>{if(e.target.id==='cpick')e.target.blur();});
 el.dock.addEventListener('mousedown',e=>{if(!e.target.closest('input'))e.preventDefault();});
 el.pop.addEventListener('mousedown',e=>{if(!e.target.closest('input'))e.preventDefault();});
-el.pop.addEventListener('click',e=>{const m=e.target.closest('[data-m]');if(m){S.cfg.eraser.mode=m.dataset.m;saveCfg();openPop();return;}const b=e.target.closest('.wopt');if(!b)return;S.cfg[S.tool].wi=+b.dataset.k;saveCfg();
+el.pop.addEventListener('click',e=>{
+  const pc=e.target.closest('[data-pc]');if(pc){const c=pc.dataset.pc;if(el.pop.classList.contains('editing')){S.saved=(S.saved||[]).filter(x=>x!==c);saveCfg();if(!S.saved.length)el.pop.classList.remove('editing');openPop();}else{applyColor(c);openPop();}return;}
+  if(e.target.closest('[data-pedit]')){el.pop.classList.toggle('editing');openPop();return;}
+  if(e.target.closest('[data-padd]')){const c=S.cfg[S.tool].color;el.pop.classList.remove('editing');
+    if(PALETTE.includes(c))toast('Questo colore è già tra quelli della barra: scegline uno con il pallino arcobaleno e poi salvalo',3500);
+    else if((S.saved||[]).includes(c))toast('Colore già salvato');
+    else{S.saved=[...(S.saved||[]),c].slice(-12);saveCfg();toast('Colore salvato');}openPop();return;}
+  const m=e.target.closest('[data-m]');if(m){S.cfg.eraser.mode=m.dataset.m;saveCfg();openPop();return;}const b=e.target.closest('.wopt');if(!b)return;S.cfg[S.tool].wi=+b.dataset.k;saveCfg();
   if(S.tool==='text'){const sz=TOOLS.text.widths[+b.dataset.k];S.cfg.text.size=sz;saveCfg();if(S.editing){S.editing.t.size=sz;S.editing.ed.style.fontSize=sz*S.scale+'px';tbarRender();}}openPop();});
 el.pop.addEventListener('input',e=>{if(e.target.id!=='op')return;S.cfg[S.tool].op=+e.target.value/100;saveCfg();});
 document.addEventListener('pointerdown',e=>{if(!spop.hidden&&!e.target.closest('.spop,.selmenu'))spop.hidden=true;if(!el.pop.hidden&&!e.target.closest('#pop,.tool'))closePop();if(!el.menu.hidden&&!e.target.closest('#menu,#bMore'))el.menu.hidden=true;},true);
