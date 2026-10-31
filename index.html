@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='6a43d9f';</script>
+<script>window.MARGINE_VER='db91df8';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -284,6 +284,7 @@ svg{display:block}
 .page svg.img{pointer-events:none}
 .page svg.img.has{transform:translateZ(0);will-change:transform}
 .sel-handle{fill:#fff;stroke:#0a84ff;stroke-width:2;vector-effect:non-scaling-stroke}
+.sel-box{fill:none;stroke:#0a84ff;stroke-width:1;stroke-dasharray:4 3;vector-effect:non-scaling-stroke;opacity:.8}
 /* ritaglio immagine */
 .crop{position:fixed;inset:0;z-index:55;background:#0b0b0c;display:flex;flex-direction:column;touch-action:none;-webkit-user-select:none;user-select:none}
 .crop[hidden]{display:none}
@@ -1092,7 +1093,9 @@ function drawSel(){if(!S.sel)return;const p=S.pages[S.sel.pg];p.gSel.textContent
   selmenu.innerHTML=(items.every(it=>it.kind==='text')?'<button data-s="tdn" aria-label="Testo più piccolo">A−</button><button data-s="tup" aria-label="Testo più grande">A+</button>':'')+(items.length===1&&items[0].kind==='image'?'<button data-s="crop">Ritaglia</button>':'')+(items.some(it=>it.kind==='shape')?'<button data-s="style">Stile</button>':'')+'<button data-s="del">Elimina</button><button data-s="dup">Duplica</button>';
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const it of items){const b=bboxOf(p,it);x0=Math.min(x0,b[0]);y0=Math.min(y0,b[1]);x1=Math.max(x1,b[2]);y1=Math.max(y1,b[3]);}
   S.sel.bb=[x0,y0,x1,y1];for(const it of items)p.gG.append(glowNode(p,it));
-  S.sel.handles=null;if(items.length===1&&items[0].kind==='image')drawHandles(p,items[0]);else if(items.length===1&&items[0].kind==='shape')drawShapeHandles(p,items[0]);
+  S.sel.handles=null;if(items.length===1&&items[0].kind==='image')drawHandles(p,items[0]);else if(items.length===1&&items[0].kind==='shape')drawShapeHandles(p,items[0]);else drawGroupHandles(p);
+  /* il menu sta sopra anche ai pallini, non li copre */
+  if(S.sel.handles){const r=12/S.scale;for(const h of S.sel.handles){x0=Math.min(x0,h.x-r);x1=Math.max(x1,h.x+r);y0=Math.min(y0,h.y-r);y1=Math.max(y1,h.y+r);}}
   const cs=[[x0,y0],[x1,y0],[x0,y1],[x1,y1]].map(q=>apply(p.vt,q[0],q[1]));const vx=cs.map(c=>c[0]*S.scale),vy=cs.map(c=>c[1]*S.scale);
   const cx=(Math.min(...vx)+Math.max(...vx))/2;let top=Math.min(...vy)-52;if(top<6)top=Math.min(Math.max(...vy)+14,p.h-46);
   selmenu.style.left=clamp(cx,70,p.w-70)+'px';selmenu.style.top=Math.max(4,top)+'px';p.el.append(selmenu);}
@@ -1190,6 +1193,19 @@ function shapeHandlePts(it){const H=[];
   const v=it.v,n=v.length/2;for(let j=0;j<n;j++)H.push({x:v[j*2],y:v[j*2+1],ref:'c'+j});
   if(it.type==='rect')for(let j=0;j<4;j++){const q=(j+1)%4;H.push({x:(v[j*2]+v[q*2])/2,y:(v[j*2+1]+v[q*2+1])/2,ref:'s'+j});}
   return H;}
+/* selezione col lazo (scrittura, testi, più oggetti): riquadro con 4 angoli per ingrandire o rimpicciolire in proporzione */
+/* margine attorno alla selezione: almeno 44 px di riquadro, così i pallini non coprono una scritta piccola */
+function groupMargins(){const[x0,y0,x1,y1]=S.sel.bb;return[Math.max(4,(44-(x1-x0)*S.scale)/2)/S.scale,Math.max(4,(44-(y1-y0)*S.scale)/2)/S.scale];}
+function groupBox(){const[x0,y0,x1,y1]=S.sel.bb,[mx,my]=groupMargins();return[x0-mx,y0-my,x1+mx,y1+my];}
+function groupCorners(b){return[[b[0],b[1]],[b[2],b[1]],[b[0],b[3]],[b[2],b[3]]];}
+function drawGroupHandles(p){const b=groupBox(),r=document.createElementNS(NS,'rect');r.setAttribute('x',b[0]);r.setAttribute('y',b[1]);r.setAttribute('width',b[2]-b[0]);r.setAttribute('height',b[3]-b[1]);r.setAttribute('class','sel-box');p.gSel.append(r);
+  const H=[];groupCorners(b).forEach(([x,y],j)=>{const c=document.createElementNS(NS,'circle');c.setAttribute('cx',x);c.setAttribute('cy',y);c.setAttribute('r',9/S.scale);c.setAttribute('class','sel-handle');p.gSel.append(c);H.push({x,y,ref:'g'+j,node:c});});
+  S.sel.handles=H;S.sel.box=r;}
+function scaleItem(it,ax,ay,k){const X=x=>r2(ax+(x-ax)*k),Y=y=>r2(ay+(y-ay)*k);
+  if(it.kind==='text'){const size=Math.max(4,r2(it.size*k));return Object.assign({},it,{x:X(it.x),y:Y(it.y),size},measureText(it.text,size));}
+  if(it.kind==='image')return Object.assign({},it,{x:X(it.x),y:Y(it.y),w:r2(it.w*k),h:r2(it.h*k)});
+  if(it.kind==='shape'){const w=r2(it.w*k);if(it.e){const[cx,cy,rx,ry,a]=it.e;return Object.assign({},it,{w,e:[X(cx),Y(cy),r2(rx*k),r2(ry*k),a]});}return Object.assign({},it,{w,v:it.v.map((v,i)=>i%2?Y(v):X(v))});}
+  return Object.assign({},it,{w:r2(it.w*k),pts:it.pts.map((v,i)=>i%3===0?X(v):i%3===1?Y(v):v)});}
 function drawShapeHandles(p,it){const b=bboxOf(p,it),big=Math.min(b[2]-b[0],b[3]-b[1])*S.scale>70;const H=shapeHandlePts(it).filter(h=>h.ref[0]!=='s'||big);
   for(const h of H){const c=document.createElementNS(NS,'circle');c.setAttribute('cx',h.x);c.setAttribute('cy',h.y);c.setAttribute('r',(h.ref[0]==='s'?7:9)/S.scale);c.setAttribute('class','sel-handle');p.gSel.append(c);h.node=c;}S.sel.handles=H;}
 function moveShapeHandles(it){if(!S.sel||!S.sel.handles)return;const P=new Map(shapeHandlePts(it).map(h=>[h.ref,h]));
@@ -1368,6 +1384,7 @@ function onDown(e){if(S.tsel)return;
     for(const n of[A.ring,A.dot]){n.setAttribute('cx',pt[0]);n.setAttribute('cy',pt[1]);}eraseAt(pt);return;}
   if(tool==='lasso'){spop.hidden=true;
     const H=hitHandle(p,pt);
+    if(H&&H.ref&&H.ref[0]==='g'){const C=groupCorners(S.sel.bb),j=+H.ref.slice(1),o=C[3-j];A={kind:'scale',p,h:H,ax:o[0],ay:o[1],hx:C[j][0],hy:C[j][1],k:1,id:e.pointerId};selmenu.remove();return;}
     if(H){const it=(S.ann[p.i]||[]).find(q=>S.sel.ids.has(q.id));if(it){A={kind:it.kind==='shape'?'reshape':'resize',p,it,h:H,nit:it,id:e.pointerId};selmenu.remove();p.gG.textContent='';return;}}
     if(selHit(p,pt)){A={kind:'move',p,start:pt,dx:0,dy:0,id:e.pointerId};selmenu.remove();p.el.classList.add('dragging');return;}
     clearSel();liveOn(p);A={kind:'lasso',p,poly:[pt[0],pt[1]],id:e.pointerId};A.node=guide(p,'path','lasso');return;}}
@@ -1392,6 +1409,11 @@ function onMove(e){if(!A||e.pointerId!==A.id)return;lastPtrT=performance.now();
   if(A.kind==='erase'){for(const ev of evs)eraseAt(toUser(p,ev.clientX,ev.clientY));for(const n of[A.ring,A.dot]){n.setAttribute('cx',pt[0]);n.setAttribute('cy',pt[1]);}return;}
   if(A.kind==='lasso'){const q=A.poly;if(Math.hypot(pt[0]-q[q.length-2],pt[1]-q[q.length-1])*S.scale<2)return;q.push(pt[0],pt[1]);
     let d='M'+fx(q[0])+' '+fx(q[1]);for(let i=2;i<q.length;i+=2)d+='L'+fx(q[i])+' '+fx(q[i+1]);A.node.setAttribute('d',d);return;}
+  if(A.kind==='scale'){const vx=A.hx-A.ax,vy=A.hy-A.ay,l2=vx*vx+vy*vy||1;const k=clamp(((pt[0]-A.ax)*vx+(pt[1]-A.ay)*vy)/l2,.1,10);A.k=k;
+    const tr=`matrix(${k} 0 0 ${k} ${A.ax*(1-k)} ${A.ay*(1-k)})`;for(const id of S.sel.ids){const n=p.nodes.get(id);if(n)n.setAttribute('transform',tr+(n.dataset.t?' '+n.dataset.t:''));}
+    p.gG.setAttribute('transform',tr);const[mx,my]=groupMargins(),bb=S.sel.bb,sx=[-mx,mx,-mx,mx],sy=[-my,-my,my,my];const C=groupCorners(bb).map(([x,y],j)=>[A.ax+(x-A.ax)*k+sx[j],A.ay+(y-A.ay)*k+sy[j]]);
+    S.sel.handles.forEach((h,j)=>{h.node.setAttribute('cx',C[j][0]);h.node.setAttribute('cy',C[j][1]);});
+    const bx=S.sel.box;if(bx){bx.setAttribute('x',Math.min(C[0][0],C[3][0]));bx.setAttribute('y',Math.min(C[0][1],C[3][1]));bx.setAttribute('width',Math.abs(C[3][0]-C[0][0]));bx.setAttribute('height',Math.abs(C[3][1]-C[0][1]));}return;}
   if(A.kind==='reshape'){const ni=reshape(A.it,A.h.ref,pt);A.nit=ni;const n=p.nodes.get(A.it.id);if(n)n.setAttribute('d',svgD(shapeSegs(ni)));moveShapeHandles(ni);return;}
   if(A.kind==='resize'){const it=A.it,ni=resizedItem(p,it,resizeBox(it,A.h,imgLocal(p,it,pt)));A.nit=ni;const n=p.nodes.get(it.id);
     if(n){n.setAttribute('width',ni.w);n.setAttribute('height',ni.h);n.dataset.t=imgMatrix(p,ni);n.setAttribute('transform',n.dataset.t);}moveHandles(p,ni);return;}
@@ -1421,6 +1443,9 @@ function onUp(e){if(!A||e.pointerId!==A.id)return;const a=A;A=null;const p=a.p;c
     const it={id:uid(),kind:'stroke',tool:a.tool,color:a.color,w:a.w,op:a.op,pts};addItem(p,it);liveOff(p);return;}
   if(a.kind==='erase'){liveOff(p);if(a.pixel){if(a.changed)setItems(p.i,a.items);renderInk(p);return;}if(a.removed.size){setItems(p.i,(S.ann[p.i]||[]).filter(it=>!a.removed.has(it.id)));renderInk(p);}return;}
   if(a.kind==='lasso'){liveOff(p);if(a.poly.length>=6)selectIn(p,a.poly);return;}
+  if(a.kind==='scale'){p.gG.removeAttribute('transform');if(Math.abs(a.k-1)>.005){const{ax,ay,k}=a;
+      if(S.sel.poly)S.sel.poly=S.sel.poly.map((v,i)=>i%2?ay+(v-ay)*k:ax+(v-ax)*k);
+      setItems(p.i,(S.ann[p.i]||[]).map(it=>S.sel.ids.has(it.id)?scaleItem(it,ax,ay,k):it));}renderInk(p);return;}
   if(a.kind==='reshape'){if(a.nit!==a.it){const ni=roundShape(a.nit);setItems(p.i,(S.ann[p.i]||[]).map(q=>q.id===a.it.id?ni:q));}renderInk(p);return;}
   if(a.kind==='resize'){const it=a.it,ni=a.nit;if(Math.abs(ni.w-it.w)+Math.abs(ni.h-it.h)+Math.abs(ni.x-it.x)+Math.abs(ni.y-it.y)>.2){setItems(p.i,(S.ann[p.i]||[]).map(q=>q.id===it.id?ni:q));renderInk(p);}else renderInk(p);return;}
   if(a.kind==='move'){p.el.classList.remove('dragging');
