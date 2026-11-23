@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='51df976';</script>
+<script>window.MARGINE_VER='b4d7b35';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -803,7 +803,7 @@ function instr(t,c){c=c||'#fff';const body=(x,w,y=30)=>`<rect x="${x}" y="${y}" 
   return'';}
 function renderDock(){
   el.tools.innerHTML=ORDER.map((t,k)=>`<button class="tool${(t==='line'?RU.on:t===S.tool)?' on':''}" style="--i:${k}" data-t="${t}" aria-label="${TOOLS[t].name}" title="${TOOLS[t].name}">${instr(t,(S.cfg[t]||{}).color)}</button>`).join('');
-  const ct=colorTool();const cur=S.cfg[ct].color;
+  const ct=colorTool();const cur=S.editing?(S.editColor||S.editing.t.color):S.cfg[ct].color;
   el.sw.querySelectorAll('.dot').forEach(d=>d.classList.toggle('on',d.dataset.c?d.dataset.c===cur:!PALETTE.includes(cur)));
   const cu=el.sw.querySelector('.custom');cu.style.setProperty('--c',PALETTE.includes(cur)?S.custom:cur);const ci=cu.querySelector('input');const cv=PALETTE.includes(cur)?S.custom:cur;if(ci&&ci.value!==cv&&document.activeElement!==ci)ci.value=cv;
   el.dock.classList.toggle('dim',!S.sel&&!(S.cfg[S.tool]&&'color' in S.cfg[S.tool]));
@@ -818,7 +818,7 @@ function selectTool(t){
   S.tool=t;if(TOOLS[t].def&&'color' in TOOLS[t].def)S.lastInk=t;saveCfg();renderDock();}
 function applyColor(c){
   if(!PALETTE.includes(c))S.custom=c;
-  if(S.editing){S.editing.t.color=c;S.editing.ed.style.color=c;S.cfg.text.color=c;saveCfg();renderDock();return;}
+  if(S.editing){textColor(c);return;}
   if(S.sel){recolorSel(c);return;}
   let t=S.tool;if(!(S.cfg[t]&&'color' in S.cfg[t])){t=S.lastInk;S.tool=t;}
   S.cfg[t].color=c;saveCfg();renderDock();if(!el.pop.hidden)openPop();}
@@ -1312,17 +1312,14 @@ const tbar=document.createElement('div');tbar.className='tbar';
 function tbarRender(){const E=S.editing;if(!E)return;
   tbar.innerHTML=`<button data-a="dn" aria-label="Testo più piccolo">A<small>−</small></button><span class="tsz">${Math.round(E.t.size)}</span><button data-a="up" aria-label="Testo più grande">A<small>+</small></button><span class="tsep"></span>`
     +`<button data-a="bold" class="tfmt" aria-label="Grassetto"><b>B</b></button><button data-a="italic" class="tfmt" aria-label="Corsivo"><i style="font-family:Georgia,serif">I</i></button><button data-a="underline" class="tfmt" aria-label="Sottolineato"><u>U</u></button><span class="tsep"></span>`
-    +PALETTE.map(c=>`<button class="tdot${c===E.t.color?' on':''}" data-c="${c}" style="--c:${c}" aria-label="Colore ${c}"></button>`).join('')+`<span class="tsep"></span><button class="tok" data-a="ok">Fine</button>`;
+ +PALETTE.map(c=>`<button class="tdot${c===(S.editColor||E.t.color)?' on':''}" data-c="${c}" style="--c:${c}" aria-label="Colore ${c}"></button>`).join('')+`<span class="tsep"></span><button class="tok" data-a="ok">Fine</button>`;
   tbarFmt();
   tbarPlace();}
 function tbarPlace(){const E=S.editing;if(!E)return;if(tbar.parentNode!==E.p.el)E.p.el.append(tbar);
   const ed=E.ed,bw=tbar.offsetWidth,bh=tbar.offsetHeight;let y=ed.offsetTop-10;if(y-bh<4)y=ed.offsetTop+ed.offsetHeight+12+bh;
   tbar.style.left=clamp(ed.offsetLeft+ed.offsetWidth/2,bw/2+4,Math.max(bw/2+4,E.p.w-bw/2-4))+'px';tbar.style.top=y+'px';}
 tbar.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();const E=S.editing;if(!E)return;const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.c){const c=b.dataset.c,sl=getSelection();
-    /* con delle parole selezionate il colore va solo a quelle, altrimenti a tutto il testo */
-    if(sl.rangeCount&&!sl.isCollapsed&&E.ed.contains(sl.anchorNode)&&E.ed.contains(sl.focusNode)){E.ed.focus();edSnap(E);try{document.execCommand('styleWithCSS',false,true);document.execCommand('foreColor',false,c);}catch(_){}edSnap(E);tbarRender();return;}
-    E.t.color=c;E.ed.style.color=c;S.cfg.text.color=c;saveCfg();renderDock();tbarRender();return;}
+  if(b.dataset.c){textColor(b.dataset.c);return;}
   if(b.dataset.a==='ok'){finishText();return;}
   if(b.dataset.a==='bold'||b.dataset.a==='italic'||b.dataset.a==='underline'){E.ed.focus();edSnap(E);try{document.execCommand(b.dataset.a,false,null);}catch(_){}edSnap(E);tbarFmt();requestAnimationFrame(tbarPlace);return;}
   const sz=stepSize(E.t.size,b.dataset.a==='up'?1:-1);E.t.size=sz;E.ed.style.fontSize=sz*S.scale+'px';S.cfg.text.size=sz;saveCfg();tbarRender();});
@@ -1330,9 +1327,22 @@ for(const ev of['touchstart','mousedown'])tbar.addEventListener(ev,e=>{e.prevent
 function edSnap(E){clearTimeout(E.snapT);const h=E.ed.innerHTML;if(h===E.hist[E.hi])return;E.hist=E.hist.slice(0,E.hi+1);E.hist.push(h);if(E.hist.length>200)E.hist.shift();E.hi=E.hist.length-1;}
 function edHist(dir){const E=S.editing;if(!E)return;edSnap(E);const k=E.hi+dir;if(k<0||k>=E.hist.length)return;E.hi=k;const ed=E.ed;ed.innerHTML=E.hist[k];ed.focus();
   try{const r=document.createRange();r.selectNodeContents(ed);r.collapse(false);const sl=getSelection();sl.removeAllRanges();sl.addRange(r);}catch(_){}tbarFmt();requestAnimationFrame(tbarPlace);}
+/* colore del testo in modifica: con delle parole selezionate va solo a quelle, altrimenti a tutto il testo.
+   In entrambi i casi il colore scelto risulta acceso sia nella barra sopra il testo sia nella barra in basso */
+function textColor(c){const E=S.editing;if(!E)return;const sl=getSelection();
+  if(sl.rangeCount&&!sl.isCollapsed&&E.ed.contains(sl.anchorNode)&&E.ed.contains(sl.focusNode)){E.ed.focus();edSnap(E);try{document.execCommand('styleWithCSS',false,true);document.execCommand('foreColor',false,c);}catch(_){}edSnap(E);}
+  else{E.t.color=c;E.ed.style.color=c;}
+  S.cfg.text.color=c;saveCfg();S.editColor=c;renderDock();tbarRender();}
+/* colore sotto il cursore o all'inizio della selezione */
+function caretColor(){const E=S.editing;if(!E)return null;const sl=getSelection();if(!sl.rangeCount||!E.ed.contains(sl.anchorNode))return null;
+  let n=sl.isCollapsed?sl.anchorNode:sl.getRangeAt(0).startContainer;if(n.nodeType!==1)n=n.parentNode;if(!n||!E.ed.contains(n))return null;return toHex(getComputedStyle(n).color);}
+function syncEditColor(){const E=S.editing;if(!E)return;const c=caretColor()||E.t.color;if(c===S.editColor)return;S.editColor=c;
+  el.sw.querySelectorAll('.dot').forEach(d=>d.classList.toggle('on',d.dataset.c?d.dataset.c===c:!PALETTE.includes(c)));
+  if(!PALETTE.includes(c))el.sw.querySelector('.custom').style.setProperty('--c',c);
+  for(const d of tbar.querySelectorAll('.tdot'))d.classList.toggle('on',d.dataset.c===c);}
 /* B I U accesi se la selezione o il cursore sono già in quello stile */
 function tbarFmt(){if(!S.editing)return;for(const b of tbar.querySelectorAll('.tfmt')){let on=false;try{on=document.queryCommandState(b.dataset.a);}catch(_){}b.classList.toggle('on',on);}}
-document.addEventListener('selectionchange',()=>{if(S.editing)tbarFmt();});
+document.addEventListener('selectionchange',()=>{if(S.editing){tbarFmt();syncEditColor();}});
 function runsHTML(lines){const esc=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   return lines.map(ln=>ln.map(([t,f,c])=>{let h=esc(t);if(f&4)h=`<u>${h}</u>`;if(f&2)h=`<i>${h}</i>`;if(f&1)h=`<b>${h}</b>`;if(c)h=`<span style="color:${c}">${h}</span>`;return h;}).join('')).join('<br>');}
 /* dal riquadro in modifica alle righe con gli stili: le righe come le vede iPadOS (innerText), lo stile di ogni carattere dal suo elemento */
@@ -1353,7 +1363,7 @@ function startText(p,item,pt){finishText();
   const ed=document.createElement('div');ed.className='tedit';ed.contentEditable='true';ed.spellcheck=false;ed.setAttribute('autocapitalize','sentences');
   const v=apply(p.vt,t.x,t.y);ed.style.left=v[0]*S.scale+'px';ed.style.top=v[1]*S.scale+'px';ed.style.fontSize=t.size*S.scale+'px';ed.style.color=t.color;if(t.runs)ed.innerHTML=runsHTML(t.runs);else ed.innerText=t.text;
   p.el.append(ed);if(item){const n=p.nodes.get(item.id);if(n)n.style.display='none';}
-  S.editing={p,t,ed,existing:!!item,orig:item,hist:[ed.innerHTML],hi:0,snapT:0};
+  S.editing={p,t,ed,existing:!!item,orig:item,hist:[ed.innerHTML],hi:0,snapT:0};S.editColor=null;
   ed.addEventListener('paste',e=>{e.preventDefault();const tx=(e.clipboardData||window.clipboardData).getData('text/plain');document.execCommand('insertText',false,tx);});
   ed.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();finishText();}});
   /* passi di Annulla dentro il riquadro: uno per parola (dopo lo spazio o a capo), per pausa nella scrittura e per ogni cambio di stile o colore */
@@ -1365,7 +1375,7 @@ function startText(p,item,pt){finishText();
   ed.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&(e.key==='z'||e.key==='Z')){e.preventDefault();edHist(e.shiftKey?1:-1);}});
   ed.focus();try{const r=document.createRange();r.selectNodeContents(ed);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r);}catch(e){}
   tbarRender();requestAnimationFrame(tbarPlace);updUndo();}
-function finishText(){const E=S.editing;if(!E)return;S.editing=null;tbar.remove();updUndo();const{p,t,ed,existing,orig}=E;
+function finishText(){const E=S.editing;if(!E)return;S.editing=null;S.editColor=null;tbar.remove();renderDock();const{p,t,ed,existing,orig}=E;
   const{text,runs}=edRuns(ed);ed.remove();
   const before=S.ann[p.i]||[];
   if(!text.trim()){if(existing)setItems(p.i,before.filter(x=>x.id!==t.id));renderInk(p);return;}
