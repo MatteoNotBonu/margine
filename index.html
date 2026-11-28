@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Annotatore PDF per iPad e Apple Pencil">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MARGINE_VER='6f4cc2a';</script>
+<script>window.MARGINE_VER='fbb250f';</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0;font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -1110,8 +1110,17 @@ async function saveAnnNow(){clearTimeout(saveT);clearTimeout(retryT);if(!S.meta|
       toast(q?'Spazio esaurito sull’iPad: rimuovi qualche PDF dalla libreria o usa Salva in File.':bak?'Archivio dell’iPad momentaneamente non disponibile: ho tenuto una copia di riserva e riprovo da solo.':'Salvataggio non riuscito, riprovo da solo. Per sicurezza usa Esporta.',5000);}
     retryT=setTimeout(saveAnnNow,3000);}
   updInd();}
-let stT;function savedToast(){$('#stWhen').textContent='Alle '+hm(Date.now())+' · il file contiene tutte le annotazioni';const t=$('#stoast');t.classList.remove('show');void t.offsetWidth;t.classList.add('show');clearTimeout(stT);stT=setTimeout(()=>t.classList.remove('show'),4500);}
-$('#stoast').addEventListener('pointerenter',()=>clearTimeout(stT));
+/* conferma di salvataggio: si chiude sempre da sola. Prima un passaggio della Pencil (hover) o di un dito sopra fermava il timer per sempre.
+   Ora solo il mouse la tiene aperta mentre ci sta sopra (al massimo 8 s); un tocco la chiude; al ritorno da Condividi o da sfondo controllo la scadenza. */
+let stT,stEnd=0;
+function stHide(){clearTimeout(stT);stEnd=0;$('#stoast').classList.remove('show');}
+function stArm(ms){clearTimeout(stT);stEnd=Date.now()+ms;stT=setTimeout(stHide,ms);}
+function savedToast(){$('#stWhen').textContent='Alle '+hm(Date.now())+' · il file contiene tutte le annotazioni';const t=$('#stoast');t.classList.remove('show');void t.offsetWidth;t.classList.add('show');stArm(4500);}
+$('#stoast').addEventListener('pointerenter',e=>{if(e.pointerType==='mouse'&&stEnd)stArm(8000);});
+$('#stoast').addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&stEnd)stArm(1500);});
+$('#stoast').addEventListener('pointerdown',stHide);
+function stCheck(){if(stEnd&&Date.now()>=stEnd)stHide();}
+document.addEventListener('visibilitychange',stCheck);window.addEventListener('pageshow',stCheck);window.addEventListener('focus',stCheck);
 async function saveClick(){await exportPdf();}
 
 /* ---------- selezione (lazo): segue la forma dei tratti, come in Anteprima ---------- */
